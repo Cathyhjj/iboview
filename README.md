@@ -21,6 +21,10 @@ npm run dev
 Open <http://127.0.0.1:5173>. Node.js 20.19+ or 22.12+ is required. The web preview
 does not require Qt or Python; the desktop application below remains independent.
 
+On macOS, a [desktop launcher](webapp/scripts/macos-launcher/README.md) can start
+the local web preview and open it in your browser with a double-click. Its
+installer uses Python 3 and the original IboView orbital icon.
+
 ## Building
 
 ### Installing dependencies
