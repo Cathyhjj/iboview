@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sample the repository's benzene Molpro IBO wavefunction (requires NumPy).
 
-This deliberately supports only spherical s/p/d/f shells and one orbital set.
+This deliberately supports only spherical s/p/d/f/g shells and one orbital set.
 Its normalization and solid-harmonic order follow the existing IboView reader
 and IrCore evaluator; it does not perform SCF or orbital localization.
 """
@@ -61,7 +61,20 @@ def solid_harmonics(points: np.ndarray, l: int) -> np.ndarray:
                                 np.sqrt(15) * x * y * z,
                                 np.sqrt(5 / 8) * y * (3 * xx - yy),
                                 np.sqrt(15) / 2 * z * (xx - yy)))
-    raise ValueError(f"Only s/p/d/f shells are supported, got l={l}")
+    if l == 4:
+        d = solid_harmonics(points, 2)
+        f = solid_harmonics(points, 3)
+        return np.column_stack((
+            1.75 * f[:, 2] * z - 0.75 * d[:, 0] * rr,
+            np.sqrt(5) / 2 * x * y * (7 * zz - rr),
+            z * (7 * np.sqrt(15) / 15 * f[:, 0] - 2 * np.sqrt(10) / 5 * rr * x),
+            np.sqrt(14) / 4 * (f[:, 3] * x - f[:, 5] * y),
+            z * (7 * np.sqrt(15) / 15 * f[:, 1] - 2 * np.sqrt(10) / 5 * rr * y),
+            7 * np.sqrt(3) / 6 * f[:, 6] * z - np.sqrt(15) / 6 * d[:, 3] * rr,
+            np.sqrt(14) / 4 * (f[:, 3] * y + f[:, 5] * x),
+            np.sqrt(7) * f[:, 3] * z,
+            np.sqrt(7) * f[:, 5] * z))
+    raise ValueError(f"Only s/p/d/f/g shells are supported, got l={l}")
 
 
 def association_ids(node: ET.Element, kind: str) -> list[str]:
@@ -73,6 +86,10 @@ def association_ids(node: ET.Element, kind: str) -> list[str]:
 def read_wavefunction(path: Path) -> dict:
     molecule = ET.parse(path).getroot().find("m:molecule", NS)
     atoms_xml = molecule.findall("c:molecule/c:atomArray/c:atom", NS)
+    if not atoms_xml:
+        atoms_xml = molecule.findall("c:atomArray/c:atom", NS)
+    if not atoms_xml:
+        raise ValueError("Molpro wavefunction has no atom coordinates")
     atoms = [{"id": atom.attrib["id"], "element": atom.attrib["elementType"],
               "positionAngstrom": [float(atom.attrib[k]) for k in ("x3", "y3", "z3")]}
              for atom in atoms_xml]
@@ -82,8 +99,8 @@ def read_wavefunction(path: Path) -> dict:
     groups = {}
     for group in basis.findall("m:basisGroup", NS):
         l = int(group.attrib["minL"])
-        if l != int(group.attrib["maxL"]) or not 0 <= l <= 3:
-            raise ValueError("Only unmixed spherical s/p/d/f shells are supported")
+        if l != int(group.attrib["maxL"]) or not 0 <= l <= 4:
+            raise ValueError("Only unmixed spherical s/p/d/f/g shells are supported")
         exponents = np.fromstring(group.find("m:basisExponents", NS).text, sep=" ")
         contractions = np.array([np.fromstring(c.text, sep=" ")
                                  for c in group.findall("m:basisContraction", NS)])
@@ -147,10 +164,11 @@ def sample_grid(wavefunction: dict, spacing: float, margin: float,
 
 
 def write_cube(path: Path, wavefunction: dict, values: np.ndarray, origin: np.ndarray,
-               dimensions: np.ndarray, spacing: float, orbital_index: int) -> None:
-    atomic_numbers = {"H": 1, "C": 6}
+               dimensions: np.ndarray, spacing: float, orbital_index: int,
+               title: str | None = None) -> None:
+    atomic_numbers = {"H": 1, "B": 5, "C": 6, "N": 7, "O": 8, "S": 16, "Fe": 26, "Re": 75}
     with path.open("w") as cube:
-        cube.write(f"Benzene IBO {orbital_index}; sampled from example-data/benzene.xml\n")
+        cube.write((title or f"Benzene IBO {orbital_index}; sampled from example-data/benzene.xml") + "\n")
         cube.write("Orbital amplitude in bohr^(-3/2); all coordinates and grid steps in bohr\n")
         cube.write(f"{len(wavefunction['atoms']):5d}" + "".join(f"{x:13.6f}" for x in origin) + "\n")
         for axis in range(3):

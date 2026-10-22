@@ -1,0 +1,140 @@
+{
+  "id": "re2me8",
+  "name": "Rhenium methyl dimer",
+  "description": "Two rhenium centers surrounded by eight methyl groups, with four selected metal-centered IBOs.",
+  "formula": "C8H24Re2²−",
+  "charge": -2,
+  "atomCount": 34,
+  "xyzUrl": "/data/re2me8/re2me8.xyz",
+  "xyzSha256": "cbe660f69852063e4513f6bdf166e3c9687642fa3c2ee9435e5aa6478559f507",
+  "defaultOrbitalId": "ibo-41",
+  "method": "PBE / def2-TZVP · IBO",
+  "orbitalType": "LOCAL(IBO)",
+  "basisFunctions": 472,
+  "occupiedOrbitals": 52,
+  "source": {
+    "file": "example-data/re2me8-dianion.xml",
+    "input": "example-data/Re2Me8_dianion.inp",
+    "sha256": "ab95542abec2e1ceedee8894fc9261ce950028fe7e3f9ecae8000752b7eb5c1b",
+    "inputSha256": "b2dc0b81a4873c2a3a22855bb12884e47c99b97360dcd639fa55865f06a8c74a",
+    "description": "Bundled Molpro LOCAL(IBO) wavefunction; companion input supplies the method and basis.",
+    "selectionNote": "Selected occupied IBOs exhibit sigma-like (41), pi-like (50, 51) and delta-like (52) symmetry near the Re-Re midpoint; these descriptions are inferred from source sampling.",
+    "energyNote": "Localized-orbital energy values copied from XML, not canonical HOMO/LUMO eigenvalues.",
+    "effectiveCorePotentialNote": "The source has 104 explicitly represented electrons, 120 fewer than the full electron count for this dianion. Its ECP-replaced core orbitals are not reconstructed or displayed."
+  },
+  "isovalueMin": 0.015,
+  "grid": {
+    "dimensions": [
+      75,
+      75,
+      75
+    ],
+    "originBohr": [
+      -10.360000000000001,
+      -10.360000000000001,
+      -10.360000000000001
+    ],
+    "spacingBohr": 0.28,
+    "marginBohr": 5.0,
+    "coordinateUnit": "bohr",
+    "valueUnit": "bohr^(-3/2)",
+    "normalization": "Source coefficients and signs retained; no rescaling.",
+    "maximumOverlapError": 1.4520145289909081e-05,
+    "maximumBoundaryAmplitude": 0.0006184482219378961
+  },
+  "orbitals": [
+    {
+      "id": "ibo-41",
+      "label": "IBO 41",
+      "sourceIndex": 41,
+      "type": "localized",
+      "description": "Occupied localized orbital 41 from the bundled rhenium methyl dimer wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": -0.100674,
+      "cubeUrl": "/data/re2me8/ibo-41.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.9999854798547101,
+      "boundaryMaximumAmplitude": 0.0006184482219378961,
+      "minimumAmplitude": -0.11172734275850806,
+      "maximumAmplitude": 0.3239120883675411,
+      "cubeSha256": "2ce03b30bc780824969f393367ab0b4788baf9d3678def52ab43f4cfb41073ef",
+      "compressedSha256": "d789b6238ea7bf5bc72812cfd01d71a121d587a5b5b59761439b4547598413f2",
+      "uncompressedBytes": 5560655,
+      "compressedBytes": 2052140
+    },
+    {
+      "id": "ibo-50",
+      "label": "IBO 50",
+      "sourceIndex": 50,
+      "type": "localized",
+      "description": "Occupied localized orbital 50 from the bundled rhenium methyl dimer wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": 0.052422,
+      "cubeUrl": "/data/re2me8/ibo-50.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.9999905443416306,
+      "boundaryMaximumAmplitude": 0.0004743038408929341,
+      "minimumAmplitude": -0.22800907550172958,
+      "maximumAmplitude": 0.22826434000297224,
+      "cubeSha256": "dbbe38bc1ad928146b425bd6e956962f22540cef4149114efd8184bc6c825887",
+      "compressedSha256": "f525e8453a72e413ca6816e3c229e518e23469fcd688991377a6fcf5b691048b",
+      "uncompressedBytes": 5697517,
+      "compressedBytes": 2094139
+    },
+    {
+      "id": "ibo-51",
+      "label": "IBO 51",
+      "sourceIndex": 51,
+      "type": "localized",
+      "description": "Occupied localized orbital 51 from the bundled rhenium methyl dimer wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": 0.052427,
+      "cubeUrl": "/data/re2me8/ibo-51.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.9999905024215511,
+      "boundaryMaximumAmplitude": 0.000475689854298982,
+      "minimumAmplitude": -0.22798975433866192,
+      "maximumAmplitude": 0.22830468307567708,
+      "cubeSha256": "0cfb3f2a4f73579d13d38f38f9fafbedc2fc1c17bd755fe09f5502a038b3dfa0",
+      "compressedSha256": "cd13401dcd5e16dd0a4e1f79e6218e7c302eb077ca4a441cf6d9ae386fce0ea4",
+      "uncompressedBytes": 5696002,
+      "compressedBytes": 2117203
+    },
+    {
+      "id": "ibo-52",
+      "label": "IBO 52",
+      "sourceIndex": 52,
+      "type": "localized",
+      "description": "Occupied localized orbital 52 from the bundled rhenium methyl dimer wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": 0.12091,
+      "cubeUrl": "/data/re2me8/ibo-52.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.9999929528232973,
+      "boundaryMaximumAmplitude": 0.0004949021092162322,
+      "minimumAmplitude": -0.22156156903353777,
+      "maximumAmplitude": 0.22155871917498338,
+      "cubeSha256": "8b23ea60455dadf811c0f29c54acbbba27119d8b6e5e09af79571332fab388c3",
+      "compressedSha256": "e42cc33e8d4cfac4197402579909b0314c9032ec6a70194ce57be5eabaa559c0",
+      "uncompressedBytes": 5697628,
+      "compressedBytes": 2097254
+    }
+  ],
+  "validation": {
+    "fineGridSpacingBohr": 0.2,
+    "fineGridMarginBohr": 6.0,
+    "fineGridDimensions": [
+      115,
+      115,
+      115
+    ],
+    "maximumOverlapError": 4.28177073530378e-06,
+    "fineGridOrbitalNorms": [
+      1.0000042817707353,
+      0.9999995696768217,
+      0.9999995750609482,
+      0.9999993766549875
+    ],
+    "maximumBoundaryAmplitude": 0.00023262557419583078
+  }
+}

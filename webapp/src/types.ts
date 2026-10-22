@@ -4,6 +4,7 @@ export interface Orbital {
   id: string;
   label: string;
   description: string;
+  type?: string;
   occupation: number;
   energyHartree?: number;
   cubeUrl: string;
@@ -11,11 +12,16 @@ export interface Orbital {
 }
 
 export interface DemoManifest {
+  id: string;
   name: string;
+  description?: string;
   formula: string;
   xyzUrl: string;
-  source: unknown;
+  defaultOrbitalId: string;
+  source: { file: string; description: string };
   method: string;
+  isovalueMin?: number;
+  grid: { spacingBohr: number };
   orbitals: Orbital[];
 }
 

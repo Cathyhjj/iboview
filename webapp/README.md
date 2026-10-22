@@ -24,6 +24,9 @@ needed by the browser.
 ## Included
 
 - Benzene from `example-data/benzene.xml`: three occupied π IBOs and two σ IBOs.
+- Three metal-complex demos, with four occupied IBOs each: iron carbonyl nitrosyl
+  (9 atoms), a rhenium methyl dimer (34 atoms), and an iron-assisted SN2
+  intermediate (32 atoms). Switch molecules with the **Demo example** menu.
 - Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
 - Shiny chic, Extra shiny and Soft studio lighting; opacity and isovalue controls.
 - Orbital color ramps from Dr.XAS, with palette reversal, adjustable color range,
@@ -73,19 +76,30 @@ interface and Vite for bundling; the original C++ application is unchanged.
 
 ## Scientific data
 
-The demo evaluates the original 270-function Molpro PBE/TZVPP wavefunction,
-without changing orbital coefficients or signs. These are localized occupied
+The demos evaluate the original bundled Molpro wavefunctions without changing
+orbital coefficients or signs. These are localized occupied
 IBOs, not canonical HOMO/LUMO orbitals. The two surface colors encode the sign of ψ, not
 charge. Demo isovalues are amplitudes in bohr^(-3/2); imported Cube fields keep
 their original scalar units and are labeled as unspecified fields.
 
-The visual grid is 89 × 93 × 47 with 0.20-bohr spacing. The demo's lower isovalue
+The benzene visual grid is 89 × 93 × 47 with 0.20-bohr spacing. Its lower isovalue
 limit of 0.015 keeps the surfaces inside the sampled box. A larger, finer grid
 gives a maximum selected-orbital overlap error of 1.24e-4. These grids are for
 visualization, not quantitative integration.
 
 See [`public/data/benzene/PROVENANCE.md`](public/data/benzene/PROVENANCE.md) and
 the accompanying JSON manifest for the source hash and numerical checks.
+
+The three metal-complex demos use 0.28-bohr display grids, with a larger
+0.20-bohr grid for overlap checks. Each folder under `public/data/` includes
+its original-source hashes, occupations, grid bounds, normalization checks and
+selection notes in `manifest.json` and `PROVENANCE.md`. Rhenium uses the source's
+ECP valence wavefunction; replaced core orbitals are not reconstructed.
+New Cube files are gzip compressed and decoded on demand with the browser's
+`DecompressionStream` API. An up-to-date browser supporting WebGL2 and gzip
+decompression is required. Only four recently viewed grids are retained in the
+demo cache; color choices persist across examples and the camera refits when
+switching molecules.
 
 ## Verify
 
@@ -95,20 +109,23 @@ npm run build
 ```
 
 Importer and geometry tests cover invalid inputs, units, field signs, mesh
-winding, normal directions, skew and reflected grids, and all five real demo
-orbitals. To regenerate the data or check the original basis evaluator, install
+winding, normal directions, skew and reflected grids, and the bundled demo
+orbitals. Demo-loader tests cover gzip assets, retries and equal orbital IDs
+across different molecules. To regenerate the data or check the original basis evaluator, install
 NumPy in a Python environment and run from the repository root:
 
 ```sh
 python3 webapp/scripts/generate_demo.py --check
-python3 -m unittest discover -s webapp/tests -p 'data*.py' -v
+python3 webapp/scripts/generate_complex_demos.py --check
+python3 -m unittest discover -s webapp/tests -p '*_test.py' -v
 ```
 
 The scientific checks compile the actual IrCore harmonic function when a C++
 compiler is available, independently compare it with the converter, and verify
-Cube axis ordering, source coordinates and π/σ reflection symmetry.
+Cube axis ordering, source coordinates, s–g harmonics and π/σ reflection symmetry.
 
-Browser acceptance checks: initial π IBO render; switching to σ IBO; changing
+Browser acceptance checks: initial π IBO render; switching between all four
+examples and their orbitals; switching to σ IBO; changing
 material/isovalue/opacity; rotation/zoom and top/side views; hydrogen/label toggles;
 XYZ/Cube import; invalid-file recovery; PNG export; narrow-screen layout;
 light/night switching and persistence after reload.

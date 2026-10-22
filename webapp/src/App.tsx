@@ -8,25 +8,20 @@ import { MoleculeViewer, type ViewerHandle } from './components/NativeMoleculeVi
 import { OrbitalColorControl } from './components/OrbitalColorControl';
 import { formulaFor, parseCube, parseXYZ } from './lib/importers';
 import { DEFAULT_ORBITAL_COLORS, orbitalPhaseColors } from './lib/orbital-colors';
-import type { DemoManifest, DisplaySettings, Orbital, Scene } from './types';
+import { assetURL, createDemoLoader, DEMOS, demoManifestURL, orbitalKind } from './lib/demos';
+import type { DemoManifest, DisplaySettings, Scene } from './types';
+import './components/demo-selector.css';
 
 const DEFAULTS: DisplaySettings = {
   isovalue: 0.045, opacity: 0.55, surface: true, hydrogens: true,
   labels: false, style: 'ball-stick', spinning: false, material: 'shiny',
   ...orbitalPhaseColors(DEFAULT_ORBITAL_COLORS),
 };
-const assetURL = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
 const formatValue = (value: number) => value > 0 && (value < 0.001 || value >= 100) ? value.toExponential(2) : value.toFixed(3);
 const importedRange = (peak: number) => {
   const max = peak > 0 ? peak * 0.95 : 1;
   return { min: max / 1000, max };
 };
-
-async function fetchText(path: string) {
-  const response = await fetch(assetURL(path));
-  if (!response.ok) throw new Error(`Could not load ${path.split('/').pop()} (${response.status}).`);
-  return response.text();
-}
 
 function Formula({ value }: { value: string }) {
   return <>{value.split(/(\d+)/).map((part, i) => /^\d+$/.test(part) ? <sub key={i}>{part}</sub> : part)}</>;
@@ -52,12 +47,13 @@ export default function App() {
   const [renderError, setRenderError] = useState('');
   const [renderStatus, setRenderStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [pendingId, setPendingId] = useState('');
+  const [pendingDemo, setPendingDemo] = useState('');
   const [toast, setToast] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const viewer = useRef<ViewerHandle>(null);
   const about = useRef<HTMLDialogElement>(null);
   const request = useRef(0);
-  const cubes = useRef(new Map<string, ReturnType<typeof parseCube>>());
+  const loadDemo = useRef(createDemoLoader());
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -73,31 +69,25 @@ export default function App() {
     setRenderError(message ?? '');
   }, []);
 
-  async function showDemo(orbital?: Orbital) {
+  async function showDemo(id = 'benzene', orbitalId?: string) {
     const ticket = ++request.current;
     setBusy(true);
     setError('');
-    setPendingId(orbital?.id ?? '');
+    setPendingId(orbitalId ?? '');
+    setPendingDemo(id);
     try {
-      const data: DemoManifest = manifest ?? JSON.parse(await fetchText('data/benzene/manifest.json'));
-      const chosen = orbital ?? data.orbitals[0];
-      const [structure, volume] = await Promise.all([
-        fetchText(data.xyzUrl).then(parseXYZ),
-        cubes.current.has(chosen.id) ? Promise.resolve(cubes.current.get(chosen.id)!)
-          : fetchText(chosen.cubeUrl).then(parseCube),
-      ]);
+      const { manifest: data, orbital: chosen, structure, volume } = await loadDemo.current(id, orbitalId);
       if (ticket !== request.current) return;
-      cubes.current.set(chosen.id, volume);
       setManifest(data);
-      setScene({ key: 'benzene-demo', name: data.name, formula: data.formula, structure, volume,
-        kind: 'demo', fileName: 'benzene.xml', orbital: chosen });
+      setScene({ key: `${data.id}-demo`, name: data.name, formula: data.formula, structure, volume,
+        kind: 'demo', fileName: data.source.file.split('/').pop()!, orbital: chosen });
       setSettings(previous => ({ ...previous, surface: true, isovalue: chosen.isovalue,
-        spinning: scene?.kind === 'demo' ? previous.spinning : false }));
+        spinning: scene?.key === `${data.id}-demo` ? previous.spinning : false }));
       setRenderStatus('loading');
     } catch (cause) {
       if (ticket === request.current) setError(cause instanceof Error ? cause.message : 'The demo could not be loaded.');
     } finally {
-      if (ticket === request.current) { setBusy(false); setPendingId(''); }
+      if (ticket === request.current) { setBusy(false); setPendingId(''); setPendingDemo(''); }
     }
   }
 
@@ -118,6 +108,7 @@ export default function App() {
     setBusy(true);
     setError('');
     setPendingId('');
+    setPendingDemo('');
     try {
       if (file.size > 35 * 1024 * 1024) throw new Error('This preview supports files up to 35 MB. Use a smaller Cube grid.');
       const extension = file.name.split('.').pop()?.toLowerCase();
@@ -160,10 +151,12 @@ export default function App() {
   const hasVolume = !!scene?.volume;
   const peak = scene?.volume ? Math.max(Math.abs(scene.volume.range[0]), Math.abs(scene.volume.range[1])) : 1;
   const isoMax = isDemo ? 0.12 : importedRange(peak).max;
-  const isoMin = isDemo ? 0.015 : importedRange(peak).min;
+  const isoMin = isDemo ? manifest?.isovalueMin ?? 0.015 : importedRange(peak).min;
   const noSurface = hasVolume && settings.isovalue > peak;
   const ready = renderStatus === 'ready' && !busy;
   const phaseColors = orbitalPhaseColors(colors);
+  const selectedDemo = pendingDemo || (isDemo ? manifest?.id : '') || '';
+  const demoDetail = DEMOS.find(demo => demo.id === selectedDemo)?.detail;
 
   return <div className="app-shell" style={{ '--positive': phaseColors.positiveColor, '--negative': phaseColors.negativeColor } as CSSProperties}>
     <header className="app-header">
@@ -196,9 +189,18 @@ export default function App() {
       <div className="workspace">
         <aside className="library-panel panel" aria-label="Molecule and orbitals">
           <div className="panel-label"><Layers3 size={15} /><span>EXPLORER</span></div>
+          <div className="demo-selector">
+            <label htmlFor="demo-example">Demo example <span>{DEMOS.length} examples</span></label>
+            <select id="demo-example" value={selectedDemo} aria-describedby="demo-detail"
+              onChange={event => void showDemo(event.target.value)}>
+              <option value="" disabled>Choose an example</option>
+              {DEMOS.map(demo => <option key={demo.id} value={demo.id}>{demo.name}</option>)}
+            </select>
+            <p id="demo-detail">{pendingDemo && pendingDemo !== manifest?.id ? 'Loading example…' : demoDetail ?? 'Explore the bundled orbital examples.'}</p>
+          </div>
           <div className="molecule-card">
             <span className="molecule-symbol"><Hexagon size={32} strokeWidth={1.4} /><span /></span>
-            <div className="molecule-name"><h2>{scene?.name ?? 'Benzene'}</h2><div className="formula"><span><Formula value={scene?.formula ?? 'C6H6'} /></span><span>·</span><span>{scene?.structure.atoms.length ?? 12} atoms</span></div></div>
+            <div className="molecule-name"><h2 title={scene?.name}>{scene?.name ?? 'Benzene'}</h2><div className="formula"><span><Formula value={scene?.formula ?? 'C6H6'} /></span><span>·</span><span>{scene?.structure.atoms.length ?? 12} atoms</span></div></div>
             {isDemo && <span className="demo-tag">DEMO</span>}
           </div>
           <div className="file-line"><FileText size={13} /><span title={scene?.fileName}>{scene?.fileName ?? 'benzene.xml'}</span><Check size={13} className="success-text" /></div>
@@ -208,16 +210,16 @@ export default function App() {
           <div className="orbital-list">
             {(isDemo || !scene) && manifest?.orbitals.map(orbital => <button key={orbital.id}
               className={`orbital-item ${scene?.orbital?.id === orbital.id ? 'selected' : ''}`}
-              aria-pressed={scene?.orbital?.id === orbital.id} onClick={() => void showDemo(orbital)}>
+              title={orbital.description} aria-pressed={scene?.orbital?.id === orbital.id} onClick={() => void showDemo(manifest.id, orbital.id)}>
               <span className={`orbital-glyph ${orbital.label.startsWith('σ') ? 'sigma' : ''}`} aria-hidden="true"><i /><i /></span>
-              <span className="orbital-copy"><strong>{orbital.label}</strong><small>{orbital.label.startsWith('π') ? 'π bonding' : 'σ bonding'}<span>2 electrons</span></small></span>
+              <span className="orbital-copy"><strong>{orbital.label}</strong><small>{orbitalKind(orbital)}<span>{orbital.occupation} electrons</span></small></span>
               {pendingId === orbital.id ? <LoaderCircle size={15} className="loading-spin" /> : scene?.orbital?.id === orbital.id ? <Eye size={15} /> : null}
             </button>)}
             {scene && !isDemo && <div className="imported-item"><FileText size={20} /><div><strong>{hasVolume ? 'Scalar field' : 'Molecular geometry'}</strong><p>{hasVolume ? 'One dataset · Cube' : 'XYZ · coordinates in Å'}</p></div></div>}
           </div>
           <div className="library-bottom">
             <div className="hint-card"><Atom size={18} /><p>{isDemo || !scene ? 'One orbital, two phases. The colors show the sign of the wavefunction, not charge.' : hasVolume ? 'Colors show positive and negative field values. Field identity and units come from your calculation.' : 'XYZ contains geometry only. Open a Cube file to display a volumetric field.'}</p></div>
-            <button className="demo-link" onClick={() => void showDemo()}><RotateCcw size={14} />Load benzene demo<ArrowUpRight size={15} /></button>
+            <button className="demo-link" onClick={() => void showDemo(manifest?.id)}><RotateCcw size={14} />Reload demo<ArrowUpRight size={15} /></button>
           </div>
         </aside>
 
@@ -226,7 +228,7 @@ export default function App() {
             <span className="viewport-mode">{settings.style === 'ball-stick' ? 'Ball & stick' : settings.style === 'stick' ? 'Sticks' : 'Space filling'}<span className="subtle-separator">/</span>Orthographic</span></div>
           <div className="viewport-stage">
             <MoleculeViewer ref={viewer} scene={scene} settings={{ ...settings, ...phaseColors }} theme={theme} onStatus={onRenderStatus} />
-            <div className="scene-label"><span>{isDemo ? 'BENZENE / IBO' : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
+            <div className="scene-label"><span>{isDemo ? `${scene.name.toUpperCase()} / IBO` : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
             <div className="viewport-tools">
               <button className="icon-button" aria-label="Zoom in" disabled={!ready} onClick={() => viewer.current?.zoom(1.15)}><Plus size={17} /></button>
               <button className="icon-button" aria-label="Zoom out" disabled={!ready} onClick={() => viewer.current?.zoom(0.87)}><Minus size={17} /></button>
@@ -264,7 +266,7 @@ export default function App() {
             <Toggle label="Atom labels" checked={settings.labels} onChange={() => update('labels', !settings.labels)} />
           </div>
           <div className="data-details"><div className="panel-label"><FileText size={14} /><span>DATA DETAILS</span></div>
-            <dl><div><dt>Method</dt><dd>{isDemo ? 'PBE / TZVPP' : 'Imported'}</dd></div><div><dt>Orbital type</dt><dd>{isDemo ? 'Localized IBO' : hasVolume ? 'Unspecified field' : 'Geometry only'}</dd></div>
+            <dl><div><dt>Method</dt><dd>{isDemo ? manifest?.method.replace(/ · IBO$/, '') : 'Imported'}</dd></div><div><dt>Orbital type</dt><dd>{isDemo ? 'Localized IBO' : hasVolume ? 'Unspecified field' : 'Geometry only'}</dd></div>
               {isDemo && <div><dt>Occupation</dt><dd>{scene.orbital?.occupation.toFixed(1)} e⁻</dd></div>}
               {hasVolume && <div><dt>Volume grid</dt><dd>{scene.volume!.dimensions.join(' × ')}</dd></div>}
               <div><dt>Coordinates</dt><dd>Å</dd></div></dl>
@@ -279,11 +281,12 @@ export default function App() {
     <dialog ref={about} className="about-dialog" onClick={event => { if (event.target === about.current) about.current.close(); }}>
       <div className="dialog-heading"><span className="brand-mark"><Atom size={23} /></span><button className="icon-button" aria-label="Close about dialog" onClick={() => about.current?.close()}><X size={20} /></button></div>
       <div className="eyebrow">IBOVIEW WEB / FIRST PREVIEW</div><h2>Real orbitals. A new perspective.</h2>
-      <p>The benzene demo uses the original <code>example-data/benzene.xml</code> wavefunction bundled with IboView: a Molpro PBE / TZVPP calculation with localized intrinsic bonding orbitals.</p>
-      <p>Five occupied IBOs are evaluated from their Gaussian basis and coefficients on a 0.20-bohr grid. The two surface colors encode the sign of ψ; they do not represent positive and negative charge. Isovalues are orbital amplitudes in bohr<sup>−3/2</sup>.</p>
+      <p>The examples use original Molpro wavefunctions bundled with IboView, with localized intrinsic bonding orbitals. Choose a molecule in the Demo example menu to explore its selected occupied orbitals.</p>
+      {manifest && <p><strong>{manifest.name}</strong>{manifest.description ? ` — ${manifest.description}` : ''}<br />Source: <code>{manifest.source.file}</code>. {manifest.method}; {manifest.orbitals.length} selected IBOs on a {manifest.grid.spacingBohr.toFixed(2)}-bohr grid.</p>}
+      <p>Orbitals are evaluated from their original Gaussian basis and coefficients. The two surface colors encode the sign of ψ; they do not represent positive and negative charge. Isovalues are orbital amplitudes in bohr<sup>−3/2</sup>.</p>
       <p>The renderer reuses IboView’s original lighting and transparency shaders in WebGL2, with its three-light setup, shiny material presets and layered depth peeling. The surface tracer follows the desktop viewer’s cube-edge algorithm.</p>
       <p>This first web version provides structure and volume visualization. The desktop SCF, IAO/IBO localization and bond-order analysis engines have not been ported. Uploaded Cube values retain their source units; XYZ provides geometry only. Bonds are inferred from interatomic distances.</p>
-      <div className="dialog-links"><a href={assetURL('data/benzene/manifest.json')} target="_blank" rel="noreferrer">Demo provenance<ArrowUpRight size={14} /></a></div>
+      <div className="dialog-links"><a href={assetURL(demoManifestURL(manifest?.id ?? 'benzene'))} target="_blank" rel="noreferrer">{manifest?.name ?? 'Benzene'} provenance<ArrowUpRight size={14} /></a></div>
       <button className="button primary dialog-done" onClick={() => about.current?.close()}>Back to exploring<ChevronRight size={15} /></button>
     </dialog>
   </div>;

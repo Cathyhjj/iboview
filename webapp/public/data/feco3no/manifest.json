@@ -1,0 +1,140 @@
+{
+  "id": "feco3no",
+  "name": "Iron carbonyl nitrosyl",
+  "description": "A compact transition-metal complex with three carbonyl ligands and a nitrosyl ligand.",
+  "formula": "C3FeNO4−",
+  "charge": -1,
+  "atomCount": 9,
+  "xyzUrl": "/data/feco3no/feco3no.xyz",
+  "xyzSha256": "09d8cc275ecf98f5110ae2d54de281449c7d3aa32437b330614fd7bb662ea80e",
+  "defaultOrbitalId": "ibo-37",
+  "method": "BP86 / TZVPP · IBO",
+  "orbitalType": "LOCAL(IBO)",
+  "basisFunctions": 312,
+  "occupiedOrbitals": 42,
+  "source": {
+    "file": "example-data/feco3no_ibos_exp2.xml",
+    "input": "example-data/feco3no_ibos_exp2.inp",
+    "sha256": "530348a89f17338d726e4eaf961bb1add487920fdf4e07d30a2f0c4ea8d8c9ef",
+    "inputSha256": "58e40d11f77e8bdebe968759fb370a511995722af99379f4d8623050e1eaf9b2",
+    "description": "Bundled Molpro LOCAL(IBO) wavefunction; companion input supplies the method and basis.",
+    "selectionNote": "IBOs 37 and 41 are displayed by the bundled native demo script; 38 and 42 add occupied localized orbitals from the same source.",
+    "energyNote": "Localized-orbital energy values copied from XML, not canonical HOMO/LUMO eigenvalues.",
+    "script": "example-data/feco3no_ibos_exp2.js"
+  },
+  "isovalueMin": 0.015,
+  "grid": {
+    "dimensions": [
+      66,
+      64,
+      69
+    ],
+    "originBohr": [
+      -7.5600000000000005,
+      -7.5600000000000005,
+      -9.520000000000001
+    ],
+    "spacingBohr": 0.28,
+    "marginBohr": 5.0,
+    "coordinateUnit": "bohr",
+    "valueUnit": "bohr^(-3/2)",
+    "normalization": "Source coefficients and signs retained; no rescaling.",
+    "maximumOverlapError": 0.0077336211651495325,
+    "maximumBoundaryAmplitude": 0.0009653592297357137
+  },
+  "orbitals": [
+    {
+      "id": "ibo-37",
+      "label": "IBO 37",
+      "sourceIndex": 37,
+      "type": "localized",
+      "description": "Occupied localized orbital 37 from the bundled iron carbonyl nitrosyl wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": -0.184656,
+      "cubeUrl": "/data/feco3no/ibo-37.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.9980529569512238,
+      "boundaryMaximumAmplitude": 0.0004996152859095554,
+      "minimumAmplitude": -0.6163316778192026,
+      "maximumAmplitude": 0.6163172517640682,
+      "cubeSha256": "7c3f3854ab6808d7f50a6aeb322603ee8ce95b72cd0b3ab96a34d8db192f5bd5",
+      "compressedSha256": "9d808d87d4ed65165f88b60b334eab1bf2245643680200aa5dbe9b764b234b14",
+      "uncompressedBytes": 3922093,
+      "compressedBytes": 1480654
+    },
+    {
+      "id": "ibo-38",
+      "label": "IBO 38",
+      "sourceIndex": 38,
+      "type": "localized",
+      "description": "Occupied localized orbital 38 from the bundled iron carbonyl nitrosyl wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": -0.137679,
+      "cubeUrl": "/data/feco3no/ibo-38.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 0.996722211790603,
+      "boundaryMaximumAmplitude": 0.0008443200942529559,
+      "minimumAmplitude": -0.663107459330517,
+      "maximumAmplitude": 0.4788337929587955,
+      "cubeSha256": "3b87671f99bad541448bca91c298aba6bad5b73e6a5a4bcfe822ed5d5bf423fb",
+      "compressedSha256": "f1c42f9b38ca189edbf4bdcb06e1aa6bfba1aeea8fdbcbedb41f2424653bab96",
+      "uncompressedBytes": 3916794,
+      "compressedBytes": 1477047
+    },
+    {
+      "id": "ibo-41",
+      "label": "IBO 41",
+      "sourceIndex": 41,
+      "type": "localized",
+      "description": "Occupied localized orbital 41 from the bundled iron carbonyl nitrosyl wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": -0.090093,
+      "cubeUrl": "/data/feco3no/ibo-41.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 1.0010568152994026,
+      "boundaryMaximumAmplitude": 0.0009653592297357137,
+      "minimumAmplitude": -0.7497020514511921,
+      "maximumAmplitude": 0.5512660532409838,
+      "cubeSha256": "1bcba17fef85396c5bd4d245171430e36e55209b5592b6c7be595fa20f9b3aad",
+      "compressedSha256": "fb22ccac8ea354e1ab21410e8d321c592c3524d0d87e82552663fd4892916bec",
+      "uncompressedBytes": 4016147,
+      "compressedBytes": 1439865
+    },
+    {
+      "id": "ibo-42",
+      "label": "IBO 42",
+      "sourceIndex": 42,
+      "type": "localized",
+      "description": "Occupied localized orbital 42 from the bundled iron carbonyl nitrosyl wavefunction.",
+      "occupation": 2.0,
+      "energyHartree": -0.090089,
+      "cubeUrl": "/data/feco3no/ibo-42.cube.gz",
+      "isovalue": 0.045,
+      "gridNorm": 1.0010556357265397,
+      "boundaryMaximumAmplitude": 0.0009652699983036093,
+      "minimumAmplitude": -0.551225406462143,
+      "maximumAmplitude": 0.7497915131675179,
+      "cubeSha256": "9efceb0d2a0cf59798cb5ac4c8e9762783aea4f06da9c75a7e9e1f8028d6c401",
+      "compressedSha256": "17a9be1075535e7d254a34503e10f5eedb07137fe0181a37623fb26c6efe20ab",
+      "uncompressedBytes": 3854888,
+      "compressedBytes": 1432970
+    }
+  ],
+  "validation": {
+    "fineGridSpacingBohr": 0.2,
+    "fineGridMarginBohr": 6.0,
+    "fineGridDimensions": [
+      102,
+      100,
+      105
+    ],
+    "maximumOverlapError": 0.001287880588430928,
+    "fineGridOrbitalNorms": [
+      0.9996405759578775,
+      0.9994007722443835,
+      1.0002011167098916,
+      1.0002009103893181
+    ],
+    "maximumBoundaryAmplitude": 0.00029128153371902997
+  }
+}

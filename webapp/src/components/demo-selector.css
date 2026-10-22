@@ -1,0 +1,16 @@
+.demo-selector { margin-top: 20px; }
+.demo-selector label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; font-size: 11px; font-weight: 600; }
+.demo-selector label span { color: var(--muted); font-size: 9px; font-weight: 400; white-space: nowrap; }
+.demo-selector select { margin: 0; width: 100%; font-size: 11px; text-overflow: ellipsis; }
+.demo-selector p { margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.demo-selector + .molecule-card { margin-top: 24px; }
+.molecule-name h2 { white-space: normal; overflow-wrap: anywhere; font-size: 15px; line-height: 1.3; }
+.formula { flex-wrap: wrap; row-gap: 3px; }
+.scene-label { max-width: calc(100% - 100px); }
+.scene-label > span { line-height: 1.5; }
+.data-details dd { text-align: right; }
+@media (max-width: 700px) {
+  .demo-selector { margin: 0 0 18px; }
+  .demo-selector + .molecule-card { margin-top: 0; }
+  .molecule-name h2 { max-width: 250px; }
+}
