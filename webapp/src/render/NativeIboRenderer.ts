@@ -12,7 +12,7 @@ type Quaternion = [number, number, number, number];
 export type MaterialPreset = 'shiny' | 'soft' | 'extra';
 export type RendererTheme = 'light' | 'dark';
 export interface Bounds { min: Vec3; max: Vec3 }
-interface GpuMesh { vao: WebGLVertexArrayObject; buffers: WebGLBuffer[]; count: number }
+interface GpuMesh { vao: WebGLVertexArrayObject; buffers: WebGLBuffer[]; count: number; colorBuffer?: WebGLBuffer; colorLength?: number }
 interface Target { framebuffer: WebGLFramebuffer; color: WebGLTexture; depth?: WebGLTexture }
 interface Program { handle: WebGLProgram; uniforms: Map<string, WebGLUniformLocation | null> }
 
@@ -185,7 +185,7 @@ export class NativeIboRenderer {
       if (!buffer) throw new Error('Unable to allocate vertex data.');
       buffers.push(buffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, values, gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, values, location === 3 ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW);
       gl.enableVertexAttribArray(location);
       gl.vertexAttribPointer(location, size, gl.FLOAT, false, 0, 0);
     }
@@ -195,7 +195,7 @@ export class NativeIboRenderer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
     gl.bindVertexArray(null);
-    return { vao, buffers, count: data.indices.length };
+    return { vao, buffers, count: data.indices.length, colorBuffer: buffers[2], colorLength: data.colors.length };
   }
 
   private makeQuad(): GpuMesh {
@@ -239,6 +239,15 @@ export class NativeIboRenderer {
   setMaterial(preset: MaterialPreset, opacity: number) {
     this.preset = preset;
     this.opacity = Math.max(0, Math.min(1, opacity));
+  }
+
+  setOrbitalColors(colors: Float32Array) {
+    this.assertAvailable();
+    const mesh = this.transparent;
+    if (!mesh?.colorBuffer) return;
+    if (colors.length !== mesh.colorLength) throw new Error('Orbital colors must match the existing geometry.');
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, mesh.colorBuffer);
+    this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, colors);
   }
 
   setTheme(theme: RendererTheme) {

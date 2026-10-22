@@ -11,6 +11,10 @@ export interface MeshData {
   indices: Uint32Array;
 }
 
+export interface OrbitalMeshData extends MeshData {
+  positiveVertexCount: number;
+}
+
 type Vec3 = [number, number, number];
 type Color = [number, number, number, number];
 const BOHR = 0.52917721092;
@@ -288,11 +292,23 @@ function traceSurface(mesh: MeshBuilder, grid: Grid, iso: number, rgba: Color): 
 }
 
 /** Both signed isosurfaces using IboView's native cube-edge topology. */
-export function buildOrbital(parsed: ParsedCube, isovalue: number): MeshData {
+export function buildOrbital(parsed: ParsedCube, isovalue: number): OrbitalMeshData {
   if (!Number.isFinite(isovalue) || isovalue <= 0) throw new Error('Orbital isovalue must be a positive finite number.');
   const mesh = new MeshBuilder();
   const grid = readGrid(parsed);
   if (isovalue >= parsed.range[0] && isovalue <= parsed.range[1]) traceSurface(mesh, grid, isovalue, color(0x6353e6));
+  const positiveVertexCount = mesh.positions.length / 3;
   if (-isovalue >= parsed.range[0] && -isovalue <= parsed.range[1]) traceSurface(mesh, grid, -isovalue, color(0x24c8c4));
-  return mesh.finish();
+  return { ...mesh.finish(), positiveVertexCount };
+}
+
+/** Positive vertices precede negative vertices, even when either phase is absent. */
+export function recolorOrbital(mesh: OrbitalMeshData, positiveColor: string, negativeColor: string): void {
+  const phases = [positiveColor, negativeColor].map((hex) => {
+    if (!/^#[\da-f]{6}$/i.test(hex)) throw new Error('Orbital colors must use six-digit hexadecimal values.');
+    return color(Number.parseInt(hex.slice(1), 16));
+  });
+  for (let vertex = 0; vertex < mesh.colors.length / 4; vertex += 1) {
+    mesh.colors.set(phases[vertex < mesh.positiveVertexCount ? 0 : 1], vertex * 4);
+  }
 }

@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   Atom, Upload, Download, ChevronRight, RotateCcw, Play, Pause, Plus, Minus,
   Eye, SlidersHorizontal, X, FileText, Info, Hexagon, Layers3, ArrowUpRight,
   Check, MousePointer2, LoaderCircle, ShieldCheck, Moon, Sun,
 } from 'lucide-react';
 import { MoleculeViewer, type ViewerHandle } from './components/NativeMoleculeViewer';
+import { OrbitalColorControl } from './components/OrbitalColorControl';
 import { formulaFor, parseCube, parseXYZ } from './lib/importers';
+import { DEFAULT_ORBITAL_COLORS, orbitalPhaseColors } from './lib/orbital-colors';
 import type { DemoManifest, DisplaySettings, Orbital, Scene } from './types';
 
 const DEFAULTS: DisplaySettings = {
   isovalue: 0.045, opacity: 0.55, surface: true, hydrogens: true,
   labels: false, style: 'ball-stick', spinning: false, material: 'shiny',
+  ...orbitalPhaseColors(DEFAULT_ORBITAL_COLORS),
 };
 const assetURL = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
 const formatValue = (value: number) => value > 0 && (value < 0.001 || value >= 100) ? value.toExponential(2) : value.toFixed(3);
@@ -43,6 +46,7 @@ export default function App() {
   const [manifest, setManifest] = useState<DemoManifest>();
   const [scene, setScene] = useState<Scene>();
   const [settings, setSettings] = useState<DisplaySettings>(DEFAULTS);
+  const [colors, setColors] = useState(DEFAULT_ORBITAL_COLORS);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [renderError, setRenderError] = useState('');
@@ -159,8 +163,9 @@ export default function App() {
   const isoMin = isDemo ? 0.015 : importedRange(peak).min;
   const noSurface = hasVolume && settings.isovalue > peak;
   const ready = renderStatus === 'ready' && !busy;
+  const phaseColors = orbitalPhaseColors(colors);
 
-  return <div className="app-shell">
+  return <div className="app-shell" style={{ '--positive': phaseColors.positiveColor, '--negative': phaseColors.negativeColor } as CSSProperties}>
     <header className="app-header">
       <a className="brand" href="./" aria-label="IboView home"><span className="brand-mark"><Atom size={25} strokeWidth={1.6} /></span>
         <span>Ibo<span className="brand-light">View</span></span><span className="preview-badge">WEB PREVIEW</span>
@@ -220,7 +225,7 @@ export default function App() {
           <div className="viewport-header"><div className="viewport-title"><span className="tiny-dot" /><strong>IboView renderer</strong></div>
             <span className="viewport-mode">{settings.style === 'ball-stick' ? 'Ball & stick' : settings.style === 'stick' ? 'Sticks' : 'Space filling'}<span className="subtle-separator">/</span>Orthographic</span></div>
           <div className="viewport-stage">
-            <MoleculeViewer ref={viewer} scene={scene} settings={settings} theme={theme} onStatus={onRenderStatus} />
+            <MoleculeViewer ref={viewer} scene={scene} settings={{ ...settings, ...phaseColors }} theme={theme} onStatus={onRenderStatus} />
             <div className="scene-label"><span>{isDemo ? 'BENZENE / IBO' : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
             <div className="viewport-tools">
               <button className="icon-button" aria-label="Zoom in" disabled={!ready} onClick={() => viewer.current?.zoom(1.15)}><Plus size={17} /></button>
@@ -249,7 +254,7 @@ export default function App() {
               <div className="range-labels"><span>Diffuse</span><span>Compact</span></div>
               <label className="slider-label" htmlFor="opacity"><span>Opacity</span><output>{Math.round(settings.opacity * 100)}%</output></label>
               <input id="opacity" type="range" min="0.2" max="1" step="0.01" value={settings.opacity} disabled={!hasVolume || !settings.surface} onChange={event => update('opacity', Number(event.target.value))} />
-              <div className="phase-colors"><span><i className="phase positive" />{isDemo ? 'Positive phase' : 'Positive value'}</span><span><i className="phase negative" />{isDemo ? 'Negative phase' : 'Negative value'}</span></div>
+              <OrbitalColorControl value={colors} onChange={setColors} disabled={!hasVolume || !settings.surface} isDemo={isDemo} />
             </div>
           </div>
           <div className="settings-section structure-settings"><h3>Molecular structure</h3>

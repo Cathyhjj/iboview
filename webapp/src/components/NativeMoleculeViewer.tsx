@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { NativeIboRenderer } from '../render/NativeIboRenderer';
-import { buildMolecule, buildOrbital, type MeshData } from '../render/geometry';
+import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
 import type { DisplaySettings, Scene } from '../types';
 
 export interface ViewerHandle {
@@ -16,9 +16,9 @@ interface Props {
   onStatus: (status: 'loading' | 'ready' | 'error', message?: string) => void;
 }
 
-const EMPTY: MeshData = {
+const EMPTY: OrbitalMeshData = {
   positions: new Float32Array(), normals: new Float32Array(),
-  colors: new Float32Array(), indices: new Uint32Array(),
+  colors: new Float32Array(), indices: new Uint32Array(), positiveVertexCount: 0,
 };
 
 export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeViewer(
@@ -30,7 +30,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
   const renderer = useRef<NativeIboRenderer | null>(null);
   const moleculeKey = useRef('');
   const molecule = useRef<{ key: string; mesh: MeshData } | undefined>(undefined);
-  const orbital = useRef<{ text: string; isovalue: number; mesh: MeshData } | undefined>(undefined);
+  const orbital = useRef<{ text: string; isovalue: number; mesh: OrbitalMeshData; colors?: string } | undefined>(undefined);
   const current = useRef({ scene, settings, theme });
   current.current = { scene, settings, theme };
 
@@ -137,7 +137,14 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
             mesh: text && scene.volume ? buildOrbital(scene.volume, settings.isovalue) : EMPTY };
           changed = true;
         }
+        const colors = `${settings.positiveColor}/${settings.negativeColor}`;
+        const colorsChanged = orbital.current!.colors !== colors;
+        if (colorsChanged) {
+          recolorOrbital(orbital.current!.mesh, settings.positiveColor, settings.negativeColor);
+          orbital.current!.colors = colors;
+        }
         if (changed) engine.setMeshes(molecule.current.mesh, orbital.current!.mesh);
+        else if (colorsChanged) engine.setOrbitalColors(orbital.current!.mesh.colors);
         engine.setMaterial(settings.material, settings.opacity);
         if (newMolecule) {
           moleculeKey.current = scene.key;
@@ -152,7 +159,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       }
     }, 45);
     return () => window.clearTimeout(timer);
-  }, [scene, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style, settings.material, onStatus]);
+  }, [scene, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style, settings.material, settings.positiveColor, settings.negativeColor, onStatus]);
 
   useEffect(() => {
     renderer.current?.setSpinning(settings.spinning);

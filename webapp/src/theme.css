@@ -78,6 +78,13 @@
 [data-theme="dark"] .about-dialog::backdrop { background: #0009; }
 [data-theme="dark"] .about-dialog code { color: #d2baff; background: var(--primary-pale); }
 
+[data-theme="dark"] :is(.color-heading, .color-reset, .color-palette-meta, .phase-color-inputs label, .ibo-color-ramp-picker > svg, .ibo-color-range-handle) { color: var(--muted); }
+[data-theme="dark"] :is(.phase-color-inputs input[type="color"], .ibo-color-ramp-picker, .ibo-cmap-menu) { background: var(--raised); border-color: var(--border); }
+[data-theme="dark"] :is(.ibo-color-ramp-picker:hover:not(:disabled), .ibo-color-ramp-picker[aria-expanded="true"]) { background: var(--primary-pale); border-color: #473760; }
+[data-theme="dark"] .ibo-color-ramp-dim { background: var(--surface); }
+[data-theme="dark"] .ibo-color-range-handle:not(:disabled):is(:hover, :focus-visible)::after { background: var(--raised); border-color: var(--border); color: var(--foreground); }
+[data-theme="dark"] .ibo-color-range-handle:is(:hover, :focus-visible) { color: var(--primary); }
+
 @media (max-width: 700px) {
   .header-actions { gap: 5px; }
   .theme-toggle { width: 34px; padding: 0; }

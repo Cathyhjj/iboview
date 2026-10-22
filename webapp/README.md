@@ -26,6 +26,9 @@ needed by the browser.
 - Benzene from `example-data/benzene.xml`: three occupied π IBOs and two σ IBOs.
 - Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
 - Shiny chic, Extra shiny and Soft studio lighting; opacity and isovalue controls.
+- Orbital color ramps from Dr.XAS, with palette reversal, adjustable color range,
+  and individual positive/negative color pickers. Color changes preserve the
+  isosurface geometry and camera; PNG exports use the selected colors.
 - Ball-and-stick, sticks, space-filling spheres, hydrogen visibility and atom labels.
 - Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
   grids, skew grids and Fortran D exponents. Files are read in the browser.
@@ -111,6 +114,16 @@ XYZ/Cube import; invalid-file recovery; PNG export; narrow-screen layout;
 light/night switching and persistence after reload.
 Rendering still requires a browser with working WebGL2; a successful build
 alone is not a rendering check.
+
+The color-ramp picker and palette definitions are adapted from Dr.XAS's
+`frontend/components/xraylarch-web/artefact-viewers/athena-ramp-picker.tsx` and
+`frontend/lib/xraylarch-web/athena-{colormaps,plot-colors}.ts` (vendored there
+from xraylarch-web). The palette modules in `src/lib/palettes/` retain the
+original color stops and interpolation, including Classic and Okabe–Ito.
+The ramp's left selected color maps to +ψ and its right selected color to −ψ;
+categorical palettes use their first two colors. These are phase colors, not
+a continuous scalar scale over the surface. Palette selection is retained
+while switching orbitals or importing files in the same page session.
 
 ## License
 

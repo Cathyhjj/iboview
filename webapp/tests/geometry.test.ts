@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseCube, parseXYZ } from '../src/lib/importers';
-import { buildMolecule, buildOrbital, type MeshData } from '../src/render/geometry';
+import { buildMolecule, buildOrbital, recolorOrbital, type MeshData } from '../src/render/geometry';
 
 type Vec3 = [number, number, number];
 const BOHR = 0.52917721092;
@@ -85,6 +85,35 @@ describe('native IboView molecule geometry', () => {
 });
 
 describe('native IboView isosurface geometry', () => {
+  it.each([0, 1, -1])('recolors signed surfaces without changing topology or normals for field mode %s', (mode) => {
+    const field = ([x]: Vec3) => mode === 0 ? x : mode * Math.abs(x);
+    const parsed = cube([3, 3, 3], [-1, -1, -1], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], field);
+    const mesh = buildOrbital(parsed, 0.4);
+    const original = { positions: mesh.positions, normals: mesh.normals, indices: mesh.indices, colors: mesh.colors };
+    const positions = mesh.positions.slice(), normals = mesh.normals.slice(), indices = mesh.indices.slice();
+    expect(mesh.positiveVertexCount).toBe(mode === -1 ? 0 : mode === 1 ? 18 : 9);
+    for (const [positive, negative] of [['#003366', '#cc2200'], ['#ffffff', '#000000']]) {
+      recolorOrbital(mesh, positive, negative);
+      for (let vertex = 0; vertex < mesh.positions.length / 3; vertex += 1) {
+        const point = Array.from(mesh.positions.slice(vertex * 3, vertex * 3 + 3)) as Vec3;
+        const hex = field(point) > 0 ? positive : negative;
+        const expected = [1, 3, 5].map((offset) => Math.fround(Number.parseInt(hex.slice(offset, offset + 2), 16) / 255));
+        expect(Array.from(mesh.colors.slice(vertex * 4, vertex * 4 + 4))).toEqual([...expected, 1]);
+      }
+      expect(mesh.positions).toBe(original.positions);
+      expect(mesh.normals).toBe(original.normals);
+      expect(mesh.indices).toBe(original.indices);
+      expect(mesh.colors).toBe(original.colors);
+      expect(mesh.positions).toEqual(positions);
+      expect(mesh.normals).toEqual(normals);
+      expect(mesh.indices).toEqual(indices);
+      assertWinding(mesh);
+    }
+    const colors = mesh.colors.slice();
+    expect(() => recolorOrbital(mesh, '#ff0000', 'invalid')).toThrow(/hexadecimal/);
+    expect(mesh.colors).toEqual(colors);
+  });
+
   it('preserves the native two-triangle cube face and outward normals for both phases', () => {
     const parsed = cube([3, 3, 3], [-1, -1, -1], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], ([x]) => x);
     const mesh = buildOrbital(parsed, 0.4);

@@ -39,4 +39,6 @@ export interface DisplaySettings {
   style: 'ball-stick' | 'stick' | 'space-fill';
   spinning: boolean;
   material: 'shiny' | 'soft' | 'extra';
+  positiveColor: string;
+  negativeColor: string;
 }
