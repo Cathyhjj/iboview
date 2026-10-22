@@ -7,6 +7,7 @@ import { nativeElementHex } from '../lib/element-colors';
 import { DEFAULT_MOLECULE_APPEARANCE, moleculeAtomColor, type MoleculeAppearance } from '../lib/molecule-appearance';
 import { buildOrbitalTailCoordinates, orbitalTailWeight } from './orbital-tail';
 import { CubicScalarGrid, cubicRange } from './cubic-grid';
+import { DEFAULT_RENDER_QUALITY, RENDER_QUALITY_SETTINGS, type RenderQuality } from '../lib/render-quality';
 
 export interface MeshData {
   positions: Float32Array;
@@ -128,7 +129,6 @@ function makeUnitSphere(subdivisions: number): { vertices: Vec3[]; triangles: Ve
 const SPHERE = makeUnitSphere(3);
 const DETAILED_SPHERE = makeUnitSphere(4);
 const DETAILED_SPHERE_ATOM_LIMIT = 256;
-const BOND_SEGMENTS = 48;
 
 function addSphere(mesh: MeshBuilder, center: Vec3, radius: number, rgba: Color, sphere: ReturnType<typeof makeUnitSphere>): void {
   const offset = mesh.positions.length / 3;
@@ -138,7 +138,7 @@ function addSphere(mesh: MeshBuilder, center: Vec3, radius: number, rgba: Color,
   for (const triangle of sphere.triangles) mesh.indices.push(offset + triangle[0], offset + triangle[1], offset + triangle[2]);
 }
 
-function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: number, atomRadius: number, rgba: Color, tapered: boolean, radius: number): void {
+function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: number, atomRadius: number, rgba: Color, tapered: boolean, radius: number, segments: number): void {
   const delta: Vec3 = [end[0] - start[0], end[1] - start[1], end[2] - start[2]];
   const distance = Math.hypot(...delta);
   const hiddenOffset = 0.95 * Math.sqrt(Math.max(0, atomRadius * atomRadius - radius * radius));
@@ -151,34 +151,35 @@ function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: numb
   const radialNormal = height / slant, axialNormal = (radius - topRadius) / slant;
   const base = mesh.positions.length / 3;
   for (let ring = 0; ring < 2; ring += 1) {
-    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
-      const angle = 2 * Math.PI * index / BOND_SEGMENTS;
+    for (let index = 0; index < segments; index += 1) {
+      const angle = 2 * Math.PI * index / segments;
       const radial: Vec3 = [0, 1, 2].map((axis) => u[axis] * Math.cos(angle) + v[axis] * Math.sin(angle)) as Vec3;
       const position = [0, 1, 2].map((axis) => start[axis] + w[axis] * (offset + ring * height) + radial[axis] * (ring ? topRadius : radius)) as Vec3;
       const normal = [0, 1, 2].map((axis) => radial[axis] * radialNormal + w[axis] * axialNormal) as Vec3;
       mesh.vertex(position, normal, rgba);
     }
   }
-  for (let index = 0; index < BOND_SEGMENTS; index += 1) {
-    const next = (index + 1) % BOND_SEGMENTS;
-    mesh.indices.push(base + index, base + next, base + index + BOND_SEGMENTS, base + index + BOND_SEGMENTS, base + next, base + next + BOND_SEGMENTS);
+  for (let index = 0; index < segments; index += 1) {
+    const next = (index + 1) % segments;
+    mesh.indices.push(base + index, base + next, base + index + segments, base + index + segments, base + next, base + next + segments);
   }
   if (radius > atomRadius + 1e-10) {
     const normal: Vec3 = [-w[0], -w[1], -w[2]];
     const center = mesh.vertex(start, normal, rgba);
-    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
+    for (let index = 0; index < segments; index += 1) {
       const source = (base + index) * 3;
       mesh.vertex([mesh.positions[source], mesh.positions[source + 1], mesh.positions[source + 2]], normal, rgba);
     }
-    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
-      mesh.indices.push(center, center + 1 + (index + 1) % BOND_SEGMENTS, center + 1 + index);
+    for (let index = 0; index < segments; index += 1) {
+      mesh.indices.push(center, center + 1 + (index + 1) % segments, center + 1 + index);
     }
   }
 }
 
 /** Native IboView element colors, subdivision spheres, and geometric bond criterion. */
-export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, 'hydrogens' | 'style'> & Partial<MoleculeAppearance>): MeshData {
+export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, 'hydrogens' | 'style'> & Partial<MoleculeAppearance>, quality: RenderQuality = DEFAULT_RENDER_QUALITY): MeshData {
   const mesh = new MeshBuilder();
+  const detail = RENDER_QUALITY_SETTINGS[quality];
   const positiveScale = (value: number | undefined) => Number.isFinite(value) && value! > 0 ? value! : 1;
   const atomScale = positiveScale(options.atomScale), hydrogenScale = positiveScale(options.hydrogenScale);
   const bondScale = positiveScale(options.bondScale);
@@ -198,7 +199,7 @@ export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, '
       rgba: color(moleculeAtomColor(atom.element, nativeElementHex(atom.element), options)) };
   });
   // Keep large imports within the native sphere mesh's memory cost.
-  const sphere = visible.length <= DETAILED_SPHERE_ATOM_LIMIT ? DETAILED_SPHERE : SPHERE;
+  const sphere = detail.sphereSubdivisions === 4 && visible.length <= DETAILED_SPHERE_ATOM_LIMIT ? DETAILED_SPHERE : SPHERE;
   for (const atom of visible) {
     addSphere(mesh, atom.position, atom.radius, atom.rgba, sphere);
   }
@@ -209,8 +210,8 @@ export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, '
         const a = visible[i], b = visible[j];
         const distance = Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2]);
         if (distance <= 1e-8 || distance > 1.3 * (a.covalent + b.covalent) * BOHR) continue;
-        addHalfBond(mesh, a.position, b.position, a.drawRadius, a.radius, uniformBondColor ?? a.rgba, tapered, bondRadius);
-        addHalfBond(mesh, b.position, a.position, b.drawRadius, b.radius, uniformBondColor ?? b.rgba, tapered, bondRadius);
+        addHalfBond(mesh, a.position, b.position, a.drawRadius, a.radius, uniformBondColor ?? a.rgba, tapered, bondRadius, detail.bondSegments);
+        addHalfBond(mesh, b.position, a.position, b.drawRadius, b.radius, uniformBondColor ?? b.rgba, tapered, bondRadius, detail.bondSegments);
       }
     }
   }

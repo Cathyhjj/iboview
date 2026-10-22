@@ -8,6 +8,8 @@ import { InteractiveExportControl } from './components/InteractiveExportControl'
 import { MoleculeViewer, type ViewerHandle } from './components/NativeMoleculeViewer';
 import { OrbitalColorControl } from './components/OrbitalColorControl';
 import { MolecularAppearanceControl } from './components/MolecularAppearanceControl';
+import { RenderQualityControl } from './components/RenderQualityControl';
+import { loadRenderQuality, saveRenderQuality } from './lib/render-quality-storage';
 import { ProjectLibrary } from './components/ProjectLibrary';
 import { DEFAULT_MOLECULE_APPEARANCE, normalizeMoleculeAppearance, readMoleculeAppearance, REPRESENTATIONS } from './lib/molecule-appearance';
 import { formulaFor, parseCube, parseXYZ, type ParsedCube } from './lib/importers';
@@ -66,6 +68,7 @@ export default function App() {
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   const [manifest, setManifest] = useState<DemoManifest>();
   const [scene, setScene] = useState<Scene>();
+  const [renderQuality, setRenderQuality] = useState(loadRenderQuality);
   const [settings, setSettings] = useState<DisplaySettings>(() => ({ ...DEFAULTS, ...readMoleculeAppearance(), ...loadDisplayPreferences() }));
   const surfaceKey = useMemo(() => scene ? cameraKeyForStructure(scene.structure.atoms) : undefined, [scene?.structure]);
   const hasVolume = !!scene?.volume;
@@ -739,9 +742,9 @@ export default function App() {
 
         <section className="viewport-panel panel" aria-label="Molecular viewer" data-render-state={renderStatus}>
           <div className="viewport-header"><div className="viewport-title"><span className="tiny-dot" /><strong>IboView renderer</strong></div>
-            <span className="viewport-mode">{REPRESENTATIONS.find(item => item.id === settings.style)?.name}<span className="subtle-separator">/</span>Orthographic</span></div>
+            <div className="viewport-render-options"><span className="viewport-mode">{REPRESENTATIONS.find(item => item.id === settings.style)?.name}<span className="subtle-separator">/</span>Orthographic</span><RenderQualityControl value={renderQuality} disabled={busy || saving} onChange={value => { setRenderQuality(value); saveRenderQuality(value); }} /></div></div>
           <div className="viewport-stage">
-            <MoleculeViewer ref={viewer} scene={scene} settings={viewerSettings} theme={theme} initialCamera={initialCamera} onStatus={onRenderStatus} />
+            <MoleculeViewer ref={viewer} renderQuality={renderQuality} scene={scene} settings={viewerSettings} theme={theme} initialCamera={initialCamera} onStatus={onRenderStatus} />
             <div className="scene-label"><span>{isDemo ? `${scene.name.toUpperCase()} / IBO` : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
             <div className="viewport-tools">
               <button className="icon-button" aria-label="Zoom in" disabled={!ready} onClick={() => viewer.current?.zoom(1.15)}><Plus size={17} /></button>

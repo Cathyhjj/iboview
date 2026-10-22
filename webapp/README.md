@@ -28,6 +28,10 @@ needed by the browser.
   (9 atoms), a rhenium methyl dimer (34 atoms), and an iron-assisted SN2
   intermediate (32 atoms). Switch molecules with the **Demo example** menu.
 - Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
+  **Render quality** above the view offers Fast, Balanced and Smooth. Lower quality
+  uses fewer surface triangles for faster preparation and rotation; Smooth retains
+  the detailed default. The choice is saved in this browser and applies to PNG and
+  interactive HTML exports. It does not change source samples, isovalue or camera.
   The last view is remembered per molecular geometry, including after refresh;
   Reset view replaces it with the default view. The last demo reopens automatically;
   each demo remembers its own selected orbital when switching examples, refreshing,

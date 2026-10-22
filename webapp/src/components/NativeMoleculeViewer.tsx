@@ -3,6 +3,7 @@ import { NativeIboRenderer, type PNGExportOptions } from '../render/NativeIboRen
 import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
 import { cameraKeyForStructure, loadCameraState, saveCameraState } from '../lib/camera-storage';
 import { cropTransparentCanvas } from '../lib/png-crop';
+import { DEFAULT_RENDER_QUALITY, RENDER_QUALITY_SETTINGS, type RenderQuality } from '../lib/render-quality';
 import type { InteractiveView } from '../lib/interactive-scene';
 import type { CameraState } from '../lib/camera-state';
 import type { DisplaySettings, Scene } from '../types';
@@ -18,6 +19,7 @@ export interface ViewerHandle {
 interface Props {
   scene?: Scene;
   settings: DisplaySettings;
+  renderQuality?: RenderQuality;
   theme: 'light' | 'dark';
   initialCamera?: CameraState;
   onStatus: (status: 'loading' | 'ready' | 'error', message?: string) => void;
@@ -29,7 +31,7 @@ const EMPTY: OrbitalMeshData = {
 };
 
 export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeViewer(
-  { scene, settings, theme, initialCamera, onStatus }, ref,
+  { scene, settings, renderQuality = DEFAULT_RENDER_QUALITY, theme, initialCamera, onStatus }, ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -41,7 +43,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
   const cameraSaveTimer = useRef<number | undefined>(undefined);
   const viewKey = useMemo(() => scene ? cameraKeyForStructure(scene.structure.atoms) : '', [scene?.structure]);
   const molecule = useRef<{ key: string; mesh: MeshData } | undefined>(undefined);
-  const orbital = useRef<{ text: string; isovalue: number; mesh: OrbitalMeshData; colors?: string } | undefined>(undefined);
+  const orbital = useRef<{ text: string; isovalue: number; quality: RenderQuality; mesh: OrbitalMeshData; colors?: string } | undefined>(undefined);
   const current = useRef({ scene, settings, theme });
   current.current = { scene, settings, theme };
 
@@ -169,19 +171,19 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
     onStatus('loading');
     const timer = window.setTimeout(() => {
       try {
-        const key = JSON.stringify([scene.key, settings.style, settings.hydrogens,
+        const key = JSON.stringify([scene.key, renderQuality, settings.style, settings.hydrogens,
           settings.atomScale, settings.hydrogenScale, settings.bondScale, settings.bonds, settings.bondStyle,
           settings.atomPalette, settings.atomColor, settings.elementColors, settings.bondColorMode, settings.bondColor]);
         const newMolecule = moleculeKey.current !== scene.key;
         let changed = false;
         if (molecule.current?.key !== key) {
-          molecule.current = { key, mesh: buildMolecule(scene.structure.atoms, settings) };
+          molecule.current = { key, mesh: buildMolecule(scene.structure.atoms, settings, renderQuality) };
           changed = true;
         }
         const text = settings.surface ? scene.volume?.cube ?? '' : '';
-        if (orbital.current?.text !== text || orbital.current?.isovalue !== settings.isovalue) {
-          orbital.current = { text, isovalue: settings.isovalue,
-            mesh: text && scene.volume ? buildOrbital(scene.volume, settings.isovalue) : EMPTY };
+        if (orbital.current?.text !== text || orbital.current?.isovalue !== settings.isovalue || orbital.current?.quality !== renderQuality) {
+          orbital.current = { text, isovalue: settings.isovalue, quality: renderQuality,
+            mesh: text && scene.volume ? buildOrbital(scene.volume, settings.isovalue, RENDER_QUALITY_SETTINGS[renderQuality].orbitalRefinement) : EMPTY };
           changed = true;
         }
         const colors = JSON.stringify([settings.positiveColor, settings.negativeColor, settings.orbitalGradient]);
@@ -212,7 +214,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       }
     }, 45);
     return () => window.clearTimeout(timer);
-  }, [scene, viewKey, initialCamera, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style,
+  }, [scene, viewKey, renderQuality, initialCamera, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style,
     settings.atomScale, settings.hydrogenScale, settings.bondScale, settings.bonds, settings.bondStyle,
     settings.atomPalette, settings.atomColor, settings.elementColors, settings.bondColorMode, settings.bondColor,
     settings.atomMaterial, settings.material, settings.positiveColor, settings.negativeColor, settings.orbitalGradient, onStatus]);
