@@ -32,11 +32,12 @@ needed by the browser.
   Reset view replaces it with the default view. The last demo reopens automatically;
   each demo remembers its own selected orbital when switching examples, refreshing,
   or reopening the page. Reopen an imported file to recover its view; browser preferences
-  do not retain file contents.
+  do not retain file contents. Save a project to keep the data and settings together.
 - Shiny chic, Extra shiny and Soft studio lighting; opacity and isovalue controls.
   Isovalue and orbital-surface visibility are remembered separately for each
   molecular geometry, including across reloads and orbital changes. Reopening a
   Cube file restores these settings; XYZ-only imports do not replace them.
+  Explicit settings in an opened project take precedence over browser preferences.
 - Orbital color ramps from Dr.XAS, with palette reversal, adjustable color range,
   and individual positive/negative color pickers. Color changes preserve the
   isosurface geometry and camera; PNG exports use the selected colors.
@@ -51,12 +52,48 @@ needed by the browser.
   Each molecular geometry remembers its own palettes, gradient extent/strength,
   opacity, orbital and atom materials, representation, sizes, bonds and labels.
   Switching molecules, refreshing, or reopening a file restores that geometry's
-  appearance. New geometries start from the previously saved global preferences.
-  Reset molecular appearance with the Molecule panel's reset button.
+  appearance. New geometries start from the previously saved global preferences;
+  applying a config or opening a project updates only the current geometry's
+  appearance. Reset molecular appearance with the Molecule panel's reset button.
   Sizes change display geometry, not coordinates or distance-inferred connectivity.
 - Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
   grids, skew grids and Fortran D exponents. Files are read in the browser.
 - PNG export of the current rendered view, including labels when enabled.
+- **Save Project** stores the current project in this browser; later saves update
+  the same project. **Save As** creates an independent named copy. **Projects**
+  opens a searchable list with names, molecular formulas, sizes and saved times.
+  Open a listed project after a reload without importing its file again. Removing
+  a saved project requires confirmation and leaves the current workspace open.
+  Projects use IndexedDB, with metadata listed separately from the larger data.
+  Storage failures are reported without replacing the previous saved copy.
+  Projects are local to this site and browser profile; clearing site data removes
+  them. Use **Export project file** or **Save file as…** for a portable backup.
+  A saved project includes molecular coordinates, scalar grids, the selected orbital, molecular and
+  orbital appearance, isovalue, visibility, theme, and camera rotation/zoom/pan.
+  Demo projects include every orbital in their list, so reopening and switching
+  those orbitals does not require fetching demo data. **Open file** restores a
+  `.iboview.json` project and adds it to the browser list; repeated imports of
+  the same named file contents reuse its entry. Project files support up to 200 MB;
+  molecular imports retain the 35 MB limit below.
+  In browsers supporting native file access, **Save file** writes back to the file
+  chosen or opened in this page session; **Save file as…** chooses another destination.
+  Other browsers download a copy. File access is not retained across page reloads.
+  Cmd/Ctrl+S saves to the browser; Cmd/Ctrl+Shift+S opens Save As.
+- **Save Config** stores named presets in this browser. Use **Saved configs**
+  to switch appearances in any project, including after a page reload. Saving
+  the same name updates that preset; the menu shows Custom appearance after edits.
+  **Load Config** imports a reusable `.iboview-config.json` file and adds it to the
+  menu; a conflicting imported name gets a numbered suffix. **Download file** in
+  the save dialog exports the current config for another browser or a backup.
+  The trash button removes a saved preset after confirmation, keeping the current
+  appearance. Browser presets are local to this site and browser profile; clearing
+  site data removes them. Configs include molecular and
+  orbital palettes, custom element/phase/bond colors, gradient ranges and effects,
+  representation, sizes, materials, opacity, atom/bond visibility, labels and theme.
+  Loading a config keeps the target project's molecular data, selected orbital,
+  isovalue, orbital-surface visibility, rotation state and camera. Config files
+  contain no molecular data and are limited to 64 KB. Up to 100 named configs can
+  be saved in the browser; current settings also use the existing browser preferences.
 
 The parser rejects malformed input, multiple fields/frames, ghost atoms, files
 over 35 MB, structures with 2,000 or more atoms and grids with 5,000,000 or more

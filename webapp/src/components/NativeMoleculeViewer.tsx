@@ -2,18 +2,21 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'rea
 import { NativeIboRenderer } from '../render/NativeIboRenderer';
 import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
 import { cameraKeyForStructure, loadCameraState, saveCameraState } from '../lib/camera-storage';
+import type { CameraState } from '../lib/camera-state';
 import type { DisplaySettings, Scene } from '../types';
 
 export interface ViewerHandle {
   orient: (orientation: 'default' | 'top' | 'side') => void;
   exportPNG: () => string | undefined;
   zoom: (factor: number) => void;
+  getCameraState: () => CameraState | undefined;
 }
 
 interface Props {
   scene?: Scene;
   settings: DisplaySettings;
   theme: 'light' | 'dark';
+  initialCamera?: CameraState;
   onStatus: (status: 'loading' | 'ready' | 'error', message?: string) => void;
 }
 
@@ -23,7 +26,7 @@ const EMPTY: OrbitalMeshData = {
 };
 
 export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeViewer(
-  { scene, settings, theme, onStatus }, ref,
+  { scene, settings, theme, initialCamera, onStatus }, ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -107,6 +110,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       return output.toDataURL('image/png');
     },
     zoom: (factor) => { renderer.current?.zoom(factor); drawLabels(); },
+    getCameraState: () => renderer.current?.getCameraState(),
   }));
 
   useEffect(() => {
@@ -187,9 +191,10 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
           moleculeKey.current = scene.key;
           engine.fit();
           engine.orient('default');
-          const savedView = loadCameraState(viewKey);
+          const savedView = initialCamera ?? loadCameraState(viewKey);
           if (savedView) engine.restoreCameraState(savedView);
           activeCameraKey.current = viewKey;
+          if (initialCamera) scheduleCameraSave();
         }
         engine.render();
         drawLabels();
@@ -199,7 +204,7 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       }
     }, 45);
     return () => window.clearTimeout(timer);
-  }, [scene, viewKey, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style,
+  }, [scene, viewKey, initialCamera, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style,
     settings.atomScale, settings.hydrogenScale, settings.bondScale, settings.bonds, settings.bondStyle,
     settings.atomPalette, settings.atomColor, settings.elementColors, settings.bondColorMode, settings.bondColor,
     settings.atomMaterial, settings.material, settings.positiveColor, settings.negativeColor, settings.orbitalGradient, onStatus]);
