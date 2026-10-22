@@ -57,6 +57,17 @@ class ComplexDemoDataTests(unittest.TestCase):
                 if manifest["id"] == "re2me8":
                     self.assertIn("120", manifest["source"]["effectiveCorePotentialNote"])
 
+    def test_validation_grid_is_finer_and_provenance_reproduces_display_grid(self):
+        for _, directory, manifest, _ in self.examples:
+            with self.subTest(demo=manifest["id"]):
+                grid, validation = manifest["grid"], manifest["validation"]
+                self.assertLess(validation["fineGridSpacingBohr"], grid["spacingBohr"])
+                self.assertGreater(validation["fineGridMarginBohr"], grid["marginBohr"])
+                self.assertLess(np.prod(grid["dimensions"]), 5_000_000)
+                provenance = (directory / "PROVENANCE.md").read_text()
+                self.assertIn(f"--spacing {grid['spacingBohr']:g} --margin {grid['marginBohr']:g} --check",
+                              provenance)
+
     def test_cubes_match_source_samples_geometry_bounds_and_integrals(self):
         rng = np.random.default_rng(217)
         for config, directory, manifest, wavefunction in self.examples:

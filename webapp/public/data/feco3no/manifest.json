@@ -25,22 +25,22 @@
   "isovalueMin": 0.015,
   "grid": {
     "dimensions": [
-      66,
-      64,
-      69
+      114,
+      111,
+      119
     ],
     "originBohr": [
-      -7.5600000000000005,
-      -7.5600000000000005,
-      -9.520000000000001
+      -7.5200000000000005,
+      -7.5200000000000005,
+      -9.44
     ],
-    "spacingBohr": 0.28,
+    "spacingBohr": 0.16,
     "marginBohr": 5.0,
     "coordinateUnit": "bohr",
     "valueUnit": "bohr^(-3/2)",
     "normalization": "Source coefficients and signs retained; no rescaling.",
-    "maximumOverlapError": 0.0077336211651495325,
-    "maximumBoundaryAmplitude": 0.0009653592297357137
+    "maximumOverlapError": 0.0003953322716663914,
+    "maximumBoundaryAmplitude": 0.0010123998586997974
   },
   "orbitals": [
     {
@@ -53,14 +53,14 @@
       "energyHartree": -0.184656,
       "cubeUrl": "/data/feco3no/ibo-37.cube.gz",
       "isovalue": 0.045,
-      "gridNorm": 0.9980529569512238,
-      "boundaryMaximumAmplitude": 0.0004996152859095554,
-      "minimumAmplitude": -0.6163316778192026,
-      "maximumAmplitude": 0.6163172517640682,
-      "cubeSha256": "7c3f3854ab6808d7f50a6aeb322603ee8ce95b72cd0b3ab96a34d8db192f5bd5",
-      "compressedSha256": "9d808d87d4ed65165f88b60b334eab1bf2245643680200aa5dbe9b764b234b14",
-      "uncompressedBytes": 3922093,
-      "compressedBytes": 1480654
+      "gridNorm": 0.9998941763504783,
+      "boundaryMaximumAmplitude": 0.0005226087594188388,
+      "minimumAmplitude": -0.6412954103251933,
+      "maximumAmplitude": 0.6413011272830043,
+      "cubeSha256": "b7b1eafa65150e38f7e25fbb59c5a760c00e51c69398a949c9c3a0ea84f87a40",
+      "compressedSha256": "e52b2391b84787e1c3069d1216bc0d47f897a25c1f40558accbc33b23a1fb769",
+      "uncompressedBytes": 20252492,
+      "compressedBytes": 7452775
     },
     {
       "id": "ibo-38",
@@ -72,14 +72,14 @@
       "energyHartree": -0.137679,
       "cubeUrl": "/data/feco3no/ibo-38.cube.gz",
       "isovalue": 0.045,
-      "gridNorm": 0.996722211790603,
-      "boundaryMaximumAmplitude": 0.0008443200942529559,
-      "minimumAmplitude": -0.663107459330517,
-      "maximumAmplitude": 0.4788337929587955,
-      "cubeSha256": "3b87671f99bad541448bca91c298aba6bad5b73e6a5a4bcfe822ed5d5bf423fb",
-      "compressedSha256": "f1c42f9b38ca189edbf4bdcb06e1aa6bfba1aeea8fdbcbedb41f2424653bab96",
-      "uncompressedBytes": 3916794,
-      "compressedBytes": 1477047
+      "gridNorm": 0.9998200973079173,
+      "boundaryMaximumAmplitude": 0.0008826605851326118,
+      "minimumAmplitude": -0.6549165795671921,
+      "maximumAmplitude": 0.5006528679543487,
+      "cubeSha256": "868ad85bae50effb75fac95d06f45f498f0a025ce31804075a44c080a0b72a8f",
+      "compressedSha256": "b12d26d9c8bd53cf065a9e193d88727f2dbe58dd1f2fcd18ea75af1bb370602e",
+      "uncompressedBytes": 20225670,
+      "compressedBytes": 7425186
     },
     {
       "id": "ibo-41",
@@ -91,14 +91,14 @@
       "energyHartree": -0.090093,
       "cubeUrl": "/data/feco3no/ibo-41.cube.gz",
       "isovalue": 0.045,
-      "gridNorm": 1.0010568152994026,
-      "boundaryMaximumAmplitude": 0.0009653592297357137,
-      "minimumAmplitude": -0.7497020514511921,
-      "maximumAmplitude": 0.5512660532409838,
-      "cubeSha256": "1bcba17fef85396c5bd4d245171430e36e55209b5592b6c7be595fa20f9b3aad",
-      "compressedSha256": "fb22ccac8ea354e1ab21410e8d321c592c3524d0d87e82552663fd4892916bec",
-      "uncompressedBytes": 4016147,
-      "compressedBytes": 1439865
+      "gridNorm": 1.0000849120282833,
+      "boundaryMaximumAmplitude": 0.0010123998586997974,
+      "minimumAmplitude": -0.8219290659999127,
+      "maximumAmplitude": 0.642039555647018,
+      "cubeSha256": "9e7850f085b0476a650fc560f226ae2488c39dc4eeba58a434621b99519c554e",
+      "compressedSha256": "263e65f358fb636f2ffdd613b472316d995fdf524c2ef4659d025d69a75c3604",
+      "uncompressedBytes": 20741096,
+      "compressedBytes": 7325830
     },
     {
       "id": "ibo-42",
@@ -110,31 +110,31 @@
       "energyHartree": -0.090089,
       "cubeUrl": "/data/feco3no/ibo-42.cube.gz",
       "isovalue": 0.045,
-      "gridNorm": 1.0010556357265397,
-      "boundaryMaximumAmplitude": 0.0009652699983036093,
-      "minimumAmplitude": -0.551225406462143,
-      "maximumAmplitude": 0.7497915131675179,
-      "cubeSha256": "9efceb0d2a0cf59798cb5ac4c8e9762783aea4f06da9c75a7e9e1f8028d6c401",
-      "compressedSha256": "17a9be1075535e7d254a34503e10f5eedb07137fe0181a37623fb26c6efe20ab",
-      "uncompressedBytes": 3854888,
-      "compressedBytes": 1432970
+      "gridNorm": 1.0000848459704959,
+      "boundaryMaximumAmplitude": 0.0010123082236887016,
+      "minimumAmplitude": -0.6419273664374651,
+      "maximumAmplitude": 0.8219834775504201,
+      "cubeSha256": "2a05c5d785f68374123e07ca07ab1f0ace25197a271aadd5b28d04671fd6e84e",
+      "compressedSha256": "6d8472455049ec7de26e3b1bccb909c3499161f2164849c6b3dbd3d064eb6814",
+      "uncompressedBytes": 19917956,
+      "compressedBytes": 7296045
     }
   ],
   "validation": {
-    "fineGridSpacingBohr": 0.2,
+    "fineGridSpacingBohr": 0.14,
     "fineGridMarginBohr": 6.0,
     "fineGridDimensions": [
-      102,
-      100,
-      105
+      144,
+      141,
+      149
     ],
-    "maximumOverlapError": 0.001287880588430928,
+    "maximumOverlapError": 0.00015892980054073495,
     "fineGridOrbitalNorms": [
-      0.9996405759578775,
-      0.9994007722443835,
-      1.0002011167098916,
-      1.0002009103893181
+      0.9999631603395636,
+      0.999932882314465,
+      1.0000492291592207,
+      1.0000492012746365
     ],
-    "maximumBoundaryAmplitude": 0.00029128153371902997
+    "maximumBoundaryAmplitude": 0.0003122196586417257
   }
 }

@@ -6,6 +6,7 @@ import type { Atom, ParsedCube } from '../lib/importers';
 import { nativeElementHex } from '../lib/element-colors';
 import { DEFAULT_MOLECULE_APPEARANCE, moleculeAtomColor, type MoleculeAppearance } from '../lib/molecule-appearance';
 import { buildOrbitalTailCoordinates, orbitalTailWeight } from './orbital-tail';
+import { CubicScalarGrid, cubicRange } from './cubic-grid';
 
 export interface MeshData {
   positions: Float32Array;
@@ -100,10 +101,10 @@ const ICOSA_VERTICES: Vec3[] = [
 ];
 const ICOSA_FACES: Vec3[] = [[0,1,8],[0,4,5],[0,5,10],[0,8,4],[0,10,1],[1,6,8],[1,7,6],[1,10,7],[2,3,11],[2,4,9],[2,5,4],[2,9,3],[2,11,5],[3,6,7],[3,7,11],[3,9,6],[4,8,9],[5,11,10],[6,9,8],[7,10,11]];
 
-function makeUnitSphere(): { vertices: Vec3[]; triangles: Vec3[] } {
+function makeUnitSphere(subdivisions: number): { vertices: Vec3[]; triangles: Vec3[] } {
   const vertices = ICOSA_VERTICES.map((v) => [...v] as Vec3);
   let triangles = ICOSA_FACES;
-  for (let level = 0; level < 3; level += 1) {
+  for (let level = 0; level < subdivisions; level += 1) {
     const midpointCache = new Map<string, number>();
     const midpoint = (i: number, j: number): number => {
       const key = `${Math.min(i, j)}:${Math.max(i, j)}`;
@@ -124,14 +125,17 @@ function makeUnitSphere(): { vertices: Vec3[]; triangles: Vec3[] } {
   }
   return { vertices, triangles };
 }
-const SPHERE = makeUnitSphere();
+const SPHERE = makeUnitSphere(3);
+const DETAILED_SPHERE = makeUnitSphere(4);
+const DETAILED_SPHERE_ATOM_LIMIT = 256;
+const BOND_SEGMENTS = 48;
 
-function addSphere(mesh: MeshBuilder, center: Vec3, radius: number, rgba: Color): void {
+function addSphere(mesh: MeshBuilder, center: Vec3, radius: number, rgba: Color, sphere: ReturnType<typeof makeUnitSphere>): void {
   const offset = mesh.positions.length / 3;
-  for (const normal of SPHERE.vertices) {
+  for (const normal of sphere.vertices) {
     mesh.vertex([center[0] + normal[0] * radius, center[1] + normal[1] * radius, center[2] + normal[2] * radius], normal, rgba);
   }
-  for (const triangle of SPHERE.triangles) mesh.indices.push(offset + triangle[0], offset + triangle[1], offset + triangle[2]);
+  for (const triangle of sphere.triangles) mesh.indices.push(offset + triangle[0], offset + triangle[1], offset + triangle[2]);
 }
 
 function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: number, atomRadius: number, rgba: Color, tapered: boolean, radius: number): void {
@@ -147,27 +151,27 @@ function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: numb
   const radialNormal = height / slant, axialNormal = (radius - topRadius) / slant;
   const base = mesh.positions.length / 3;
   for (let ring = 0; ring < 2; ring += 1) {
-    for (let index = 0; index < 16; index += 1) {
-      const angle = 2 * Math.PI * index / 16;
+    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
+      const angle = 2 * Math.PI * index / BOND_SEGMENTS;
       const radial: Vec3 = [0, 1, 2].map((axis) => u[axis] * Math.cos(angle) + v[axis] * Math.sin(angle)) as Vec3;
       const position = [0, 1, 2].map((axis) => start[axis] + w[axis] * (offset + ring * height) + radial[axis] * (ring ? topRadius : radius)) as Vec3;
       const normal = [0, 1, 2].map((axis) => radial[axis] * radialNormal + w[axis] * axialNormal) as Vec3;
       mesh.vertex(position, normal, rgba);
     }
   }
-  for (let index = 0; index < 16; index += 1) {
-    const next = (index + 1) % 16;
-    mesh.indices.push(base + index, base + next, base + index + 16, base + index + 16, base + next, base + next + 16);
+  for (let index = 0; index < BOND_SEGMENTS; index += 1) {
+    const next = (index + 1) % BOND_SEGMENTS;
+    mesh.indices.push(base + index, base + next, base + index + BOND_SEGMENTS, base + index + BOND_SEGMENTS, base + next, base + next + BOND_SEGMENTS);
   }
   if (radius > atomRadius + 1e-10) {
     const normal: Vec3 = [-w[0], -w[1], -w[2]];
     const center = mesh.vertex(start, normal, rgba);
-    for (let index = 0; index < 16; index += 1) {
+    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
       const source = (base + index) * 3;
       mesh.vertex([mesh.positions[source], mesh.positions[source + 1], mesh.positions[source + 2]], normal, rgba);
     }
-    for (let index = 0; index < 16; index += 1) {
-      mesh.indices.push(center, center + 1 + (index + 1) % 16, center + 1 + index);
+    for (let index = 0; index < BOND_SEGMENTS; index += 1) {
+      mesh.indices.push(center, center + 1 + (index + 1) % BOND_SEGMENTS, center + 1 + index);
     }
   }
 }
@@ -193,8 +197,10 @@ export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, '
       radius: baseRadius * atomScale * (atom.element === 'H' ? hydrogenScale : 1),
       rgba: color(moleculeAtomColor(atom.element, nativeElementHex(atom.element), options)) };
   });
+  // Keep large imports within the native sphere mesh's memory cost.
+  const sphere = visible.length <= DETAILED_SPHERE_ATOM_LIMIT ? DETAILED_SPHERE : SPHERE;
   for (const atom of visible) {
-    addSphere(mesh, atom.position, atom.radius, atom.rgba);
+    addSphere(mesh, atom.position, atom.radius, atom.rgba, sphere);
   }
   if (options.bonds !== false && options.style !== 'space-fill' && options.style !== 'spheres') {
     const tapered = options.style !== 'wireframe' && (options.bondStyle ? options.bondStyle === 'tapered' : options.style === 'ball-stick');
@@ -319,14 +325,117 @@ function traceSurface(mesh: MeshBuilder, grid: Grid, iso: number, rgba: Color): 
   }
 }
 
-/** Both signed isosurfaces using IboView's native cube-edge topology. */
-export function buildOrbital(parsed: ParsedCube, isovalue: number): OrbitalMeshData {
+// Apply one factor throughout the grid so neighboring patches share their fine edges.
+const MAX_REFINED_SAMPLES = 5_000_000;
+
+function refinementCandidates(grid: Grid, cubic: CubicScalarGrid, isovalue: number, phases: number): number[] {
+  const [nx, ny, nz] = grid.dimensions, candidates: number[] = [];
+  const stencil = new Float64Array(64);
+  for (let x = 0; x < nx - 1; x += 1) {
+    for (let y = 0; y < ny - 1; y += 1) {
+      for (let z = 0; z < nz - 1; z += 1) {
+        const [low, high] = cubicRange(cubic.stencil(x, y, z, stencil));
+        let mask = 0;
+        if (phases & 1 && low <= isovalue && high >= isovalue) mask |= 1;
+        if (phases & 2 && low <= -isovalue && high >= -isovalue) mask |= 2;
+        if (mask) candidates.push(((x * ny + y) * nz + z) * 4 + mask);
+      }
+    }
+  }
+  return candidates;
+}
+
+function traceRefinedSurface(mesh: MeshBuilder, grid: Grid, cubic: CubicScalarGrid,
+  candidates: number[], factor: number, iso: number, rgba: Color): void {
+  const { origin, axes, reciprocal, dimensions: [, ny, nz] } = grid;
+  const n = factor + 1, fineNy = (ny - 1) * factor + 1, fineNz = (nz - 1) * factor + 1;
+  const fineNode = (x: number, y: number, z: number): number => (x * fineNy + y) * fineNz + z;
+  const localNode = (x: number, y: number, z: number): number => (x * n + y) * n + z;
+  const stride = [n * n, n, 1];
+  const stencil = new Float64Array(64), samples = new Float64Array(n ** 3);
+  const vertexCache = new Map<number, number>();
+  const edgeTypes = new Uint8Array(12), edgeVertices = new Uint32Array(12), handled = new Uint8Array(12);
+  const reverse = (iso > 0) !== (grid.determinant < 0), phase = iso > 0 ? 1 : 2;
+  for (const candidate of candidates) {
+    if (!(candidate % 4 & phase)) continue;
+    const base = Math.floor(candidate / 4);
+    const x = Math.floor(base / (ny * nz)), y = Math.floor(base / nz) % ny, z = base % nz;
+    cubic.stencil(x, y, z, stencil);
+    cubic.subdivide(stencil, factor, samples);
+    for (let sx = 0; sx < factor; sx += 1) for (let sy = 0; sy < factor; sy += 1) for (let sz = 0; sz < factor; sz += 1) {
+      let low = Infinity, high = -Infinity;
+      for (let dx = 0; dx < 2; dx += 1) for (let dy = 0; dy < 2; dy += 1) for (let dz = 0; dz < 2; dz += 1) {
+        const value = samples[localNode(sx + dx, sy + dy, sz + dz)];
+        low = Math.min(low, value); high = Math.max(high, value);
+      }
+      if (low >= iso || high < iso) continue;
+      edgeTypes.fill(0); handled.fill(0);
+      for (let edge = 0; edge < 12; edge += 1) {
+        const [axis, dx, dy, dz] = EDGE_COORDS[edge];
+        const local: Vec3 = [sx + dx, sy + dy, sz + dz];
+        const first = localNode(...local), second = first + stride[axis];
+        const dA = samples[first] - iso, dB = samples[second] - iso;
+        const left = dA >= 0 && dB < 0, right = dA < 0 && dB >= 0;
+        if (!left && !right) continue;
+        edgeTypes[edge] = left ? 1 : 2;
+        const key = fineNode(x * factor + local[0], y * factor + local[1], z * factor + local[2]) * 3 + axis;
+        let index = vertexCache.get(key);
+        if (index === undefined) {
+          local[axis] += dA / (dA - dB);
+          for (let component = 0; component < 3; component += 1) local[component] /= factor;
+          const coordinate: Vec3 = [x + local[0], y + local[1], z + local[2]];
+          const position = [0, 1, 2].map((component) => origin[component] + axes[0][component] * coordinate[0] + axes[1][component] * coordinate[1] + axes[2][component] * coordinate[2]) as Vec3;
+          const derivative = cubic.sample(stencil, ...local);
+          let gradient = [0, 1, 2].map((component) => reciprocal[0][component] * derivative[1] + reciprocal[1][component] * derivative[2] + reciprocal[2][component] * derivative[3]) as Vec3;
+          if (Math.hypot(...gradient) < 1e-30) gradient = axes[axis].map((component) => component * (dB - dA)) as Vec3;
+          const sign = iso > 0 ? -1 : 1;
+          const normal = unit(gradient).map((component) => component * sign) as Vec3;
+          index = mesh.vertex(position, normal, rgba);
+          vertexCache.set(key, index);
+        }
+        edgeVertices[edge] = index;
+      }
+      for (let firstEdge = 0; firstEdge < 12; firstEdge += 1) {
+        if (handled[firstEdge] || !edgeTypes[firstEdge]) continue;
+        const face: number[] = [];
+        let current = firstEdge;
+        while (!handled[current] && edgeTypes[current]) {
+          face.push(edgeVertices[current]); handled[current] = 1;
+          for (const linked of EDGE_LINKS[edgeTypes[current] - 1][current]) {
+            current = linked;
+            if (edgeTypes[current]) break;
+          }
+        }
+        for (let triangle = 1; triangle < face.length - 1; triangle += 1) {
+          const a = face[0], b = face[triangle], c = face[triangle + 1];
+          const ab = [0, 1, 2].map((component) => mesh.positions[b * 3 + component] - mesh.positions[a * 3 + component]) as Vec3;
+          const ac = [0, 1, 2].map((component) => mesh.positions[c * 3 + component] - mesh.positions[a * 3 + component]) as Vec3;
+          if (Math.hypot(...cross(ab, ac)) < 1e-20) continue;
+          mesh.indices.push(a, reverse ? c : b, reverse ? b : c);
+        }
+      }
+    }
+  }
+}
+
+/** Both signed isosurfaces using IboView's native cube-edge topology on a refined field. */
+export function buildOrbital(parsed: ParsedCube, isovalue: number, refinement: 1 | 2 | 3 = 3): OrbitalMeshData {
   if (!Number.isFinite(isovalue) || isovalue <= 0) throw new Error('Orbital isovalue must be a positive finite number.');
+  if (![1, 2, 3].includes(refinement)) throw new Error('Orbital refinement must be 1, 2, or 3.');
   const mesh = new MeshBuilder();
   const grid = readGrid(parsed);
-  if (isovalue >= parsed.range[0] && isovalue <= parsed.range[1]) traceSurface(mesh, grid, isovalue, color(0x6353e6));
+  const phases = (isovalue >= parsed.range[0] && isovalue <= parsed.range[1] ? 1 : 0)
+    | (-isovalue >= parsed.range[0] && -isovalue <= parsed.range[1] ? 2 : 0);
+  const cubic = new CubicScalarGrid(grid.dimensions, grid.values);
+  const candidates = refinement > 1 && phases ? refinementCandidates(grid, cubic, isovalue, phases) : [];
+  while (refinement > 1 && candidates.length * (refinement + 1) ** 3 > MAX_REFINED_SAMPLES) refinement = (refinement - 1) as 1 | 2;
+  const trace = (iso: number, rgba: Color): void => {
+    if (refinement === 1) traceSurface(mesh, grid, iso, rgba);
+    else traceRefinedSurface(mesh, grid, cubic, candidates, refinement, iso, rgba);
+  };
+  if (phases & 1) trace(isovalue, color(0x6353e6));
   const positiveVertexCount = mesh.positions.length / 3;
-  if (-isovalue >= parsed.range[0] && -isovalue <= parsed.range[1]) traceSurface(mesh, grid, -isovalue, color(0x24c8c4));
+  if (phases & 2) trace(-isovalue, color(0x24c8c4));
   const result: OrbitalMeshData = { ...mesh.finish(), positiveVertexCount };
   result.tailCoordinates = buildOrbitalTailCoordinates(result.positions, result.indices, positiveVertexCount, parsed.atoms);
   result.tailWeights = result.tailCoordinates.map((coordinate) => orbitalTailWeight(coordinate));

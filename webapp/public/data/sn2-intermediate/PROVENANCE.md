@@ -19,14 +19,14 @@ Localized-orbital energy values copied from XML, not canonical HOMO/LUMO eigenva
 
 Coordinates, source coefficients, signs and occupations are retained. No SCF, orbital localization, core reconstruction or amplitude rescaling is performed.
 
-The display grid is 105 × 74 × 83, with 0.28 bohr spacing and at least 5 bohr margin around the atoms. Cube coordinates use bohr and orbital amplitudes use bohr^(-3/2).
+The display grid is 162 × 113 × 128, with 0.18 bohr spacing and at least 5 bohr margin around the atoms. Cube coordinates use bohr and orbital amplitudes use bohr^(-3/2).
 
-- Display-grid maximum overlap error: 0.001866275789
-- Display-grid maximum boundary amplitude: 0.0006427090286
+- Display-grid maximum overlap error: 3.189722609e-05
+- Display-grid maximum boundary amplitude: 0.0006990557246
 - Minimum supported display isovalue: 0.015
-- Finer validation grid: 0.2 bohr spacing, 6 bohr margin
-- Finer-grid maximum overlap error: 0.0001658416936
-- Finer-grid maximum boundary amplitude: 0.000210307945
+- Finer validation grid: 0.1575 bohr spacing, 6 bohr margin
+- Finer-grid maximum overlap error: 4.782284011e-05
+- Finer-grid maximum boundary amplitude: 0.0002242218489
 
 Overlap errors are the largest absolute deviations of the sampled overlap matrix from the identity. These numerical checks support visualization fidelity; the display cubes are not intended for quantitative integration or population analysis.
 
@@ -35,7 +35,7 @@ Overlap errors are the largest absolute deviations of the sampled overlap matrix
 Regenerate the assets and checks from the repository root:
 
 ```sh
-python3 webapp/scripts/generate_complex_demos.py --demo sn2-intermediate --check
+python3 webapp/scripts/generate_complex_demos.py --demo sn2-intermediate --spacing 0.18 --margin 5 --check
 ```
 
 Refresh this document from the existing manifest without resampling:

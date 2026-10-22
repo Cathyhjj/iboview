@@ -31,6 +31,10 @@ class DemoDataTests(unittest.TestCase):
         self.assertEqual(self.wavefunction["setAttributes"]["type"], "LOCAL(IBO)")
         self.assertEqual(sum(float(a["occupation"]) for a in self.wavefunction["orbitalAttributes"]), 42)
         self.assertLess(self.manifest["validation"]["maximumOverlapError"], 0.0002)
+        self.assertLess(self.manifest["validation"]["fineGridSpacingBohr"],
+                        self.manifest["grid"]["spacingBohr"])
+        self.assertGreater(self.manifest["validation"]["fineGridMarginBohr"],
+                           self.manifest["grid"]["marginBohr"])
 
     def test_cube_values_geometry_and_axis_order(self):
         rng = np.random.default_rng(6)

@@ -25,12 +25,13 @@ C++ function and compares it against the Python evaluator at random points.
 Geometry in the XML and XYZ is in ångström; basis evaluation and Cube coordinates
 are in bohr, using IboView's `0.52917721092` conversion. The Cube field is orbital
 amplitude in bohr^(-3/2), not electron density. Grid order is x outermost and z
-innermost. The visual grid is 89 × 93 × 47 at 0.20 bohr spacing (about 9.45
-points/ångström); its finite box omits about 0.21% of the π orbital norm. The
-sampled π norms are 0.997934–0.997936 and the two σ norms are 1.000396 and
-1.000151. These are finite-grid quadrature results; the orbitals are not rescaled. A
-larger, finer integration grid (0.15 bohr, 6 bohr margin) gives a maximum error
-of 1.24e-4 in the selected-orbital overlap matrix compared with the identity.
+innermost. The visual grid is 111 × 117 × 59 at 0.16 bohr spacing (about 11.8
+points/ångström), with a 4.5-bohr margin; its finite box omits about 0.20% of the
+π orbital norm. The sampled π norms are 0.998029–0.998030 and the two σ norms
+are 1.000098 and 0.999959. These are finite-grid quadrature results; the orbitals
+are not rescaled. A larger, finer integration grid (0.14 bohr, 6 bohr margin)
+gives a maximum error of 1.19e-4 in the selected-orbital overlap matrix compared
+with the identity.
 The three π orbitals have reflection errors below 4e-15. Precise results are
 stored in the manifest. The grid is intended for visualization, not quantitative
 integration or electronic-structure calculations.
@@ -38,7 +39,7 @@ integration or electronic-structure calculations.
 Regenerate from the repository root with Python 3 and NumPy:
 
 ```sh
-python3 webapp/scripts/generate_demo.py --check
+python3 webapp/scripts/generate_demo.py --spacing 0.16 --margin 4.5 --check
 python3 -m unittest discover -s webapp/tests -p 'data*.py' -v
 ```
 

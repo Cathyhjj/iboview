@@ -4,7 +4,8 @@ import { DEFAULT_MOLECULE_APPEARANCE, type MoleculeAppearance } from '../src/lib
 import { buildMolecule, type MeshData } from '../src/render/geometry';
 
 const BOHR = 0.52917721092;
-const SPHERE_VERTICES = 642;
+const SPHERE_VERTICES = 2562;
+const BOND_SEGMENTS = 48;
 const PAIR: Atom[] = [{ element: 'C', x: 0, y: 0, z: 0 }, { element: 'O', x: 1.2, y: 0, z: 0 }];
 const OPTIONS = { hydrogens: true, style: 'ball-stick' } as const;
 const rgba = (hex: number) => [(hex >> 16 & 255) / 255, (hex >> 8 & 255) / 255, (hex & 255) / 255, 1].map(Math.fround);
@@ -15,7 +16,7 @@ const sphereRadius = (mesh: MeshData, atom: Atom, index: number) => Math.hypot(
   mesh.positions[index * SPHERE_VERTICES * 3 + 2] - atom.z,
 );
 const ringRadius = (mesh: MeshData, atomCount: number, ring: number) => {
-  const offset = (atomCount * SPHERE_VERTICES + ring * 16) * 3;
+  const offset = (atomCount * SPHERE_VERTICES + ring * BOND_SEGMENTS) * 3;
   return Math.hypot(mesh.positions[offset + 1], mesh.positions[offset + 2]);
 };
 
@@ -36,12 +37,28 @@ describe('molecular appearance geometry', () => {
   it('preserves the native ball-and-stick mesh with explicit default settings', () => {
     const native = buildMolecule(PAIR, OPTIONS);
     expect(buildMolecule(PAIR, DEFAULT_MOLECULE_APPEARANCE)).toEqual(native);
-    expect(native.positions.length / 3).toBe(2 * SPHERE_VERTICES + 64);
+    expect(native.positions.length / 3).toBe(2 * SPHERE_VERTICES + 4 * BOND_SEGMENTS);
     expect(sphereRadius(native, PAIR[0], 0)).toBeCloseTo(0.4 * 1.43 * BOHR, 7);
     expect(vertexColor(native, 0)).toEqual(rgba(0x999999));
     expect(vertexColor(native, SPHERE_VERTICES)).toEqual(rgba(0xff0000));
     expect(ringRadius(native, 2, 0)).toBeCloseTo(0.28 * BOHR, 7);
     expect(ringRadius(native, 2, 1)).toBeCloseTo(0.28 * BOHR * 0.72, 7);
+  });
+
+  it.each<MoleculeAppearance['bondStyle']>(['tapered', 'cylinder'])('keeps %s bond ring chord error below 0.22% of the analytic radius', (bondStyle) => {
+    const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle });
+    let worstChordError = 0;
+    for (let ring = 0; ring < 4; ring += 1) {
+      const base = 2 * SPHERE_VERTICES + ring * BOND_SEGMENTS;
+      const radius = 0.28 * BOHR * (bondStyle === 'tapered' && ring % 2 ? 0.72 : 1);
+      for (let index = 0; index < BOND_SEGMENTS; index += 1) {
+        const a = (base + index) * 3, b = (base + (index + 1) % BOND_SEGMENTS) * 3;
+        const midpointRadius = Math.hypot((mesh.positions[a + 1] + mesh.positions[b + 1]) / 2,
+          (mesh.positions[a + 2] + mesh.positions[b + 2]) / 2);
+        worstChordError = Math.max(worstChordError, 1 - midpointRadius / radius);
+      }
+    }
+    expect(worstChordError).toBeLessThan(0.0022);
   });
 
   it('scales atoms and hydrogens without changing bonds, coordinates, or connectivity', () => {
@@ -75,7 +92,7 @@ describe('molecular appearance geometry', () => {
     expect(vertexColor(element, 0)).toEqual(rgba(0x66aacc));
     expect(vertexColor(element, SPHERE_VERTICES)).toEqual(rgba(0xee7788));
     expect(vertexColor(element, 2 * SPHERE_VERTICES)).toEqual(rgba(0x66aacc));
-    expect(vertexColor(element, 2 * SPHERE_VERTICES + 32)).toEqual(rgba(0xee7788));
+    expect(vertexColor(element, 2 * SPHERE_VERTICES + 2 * BOND_SEGMENTS)).toEqual(rgba(0xee7788));
     const uniform = buildMolecule(PAIR, { ...options, bondColorMode: 'uniform', bondColor: '#226644' });
     expect(uniform.positions).toEqual(element.positions);
     expect(uniform.normals).toEqual(element.normals);
@@ -100,7 +117,7 @@ describe('molecular appearance geometry', () => {
   it('draws wireframes as narrow round tubes with matching spherical joints', () => {
     const wire = buildMolecule(PAIR, { ...OPTIONS, style: 'wireframe', bondScale: 1.3, bondStyle: 'tapered' });
     const radius = 0.28 * BOHR * 0.28 * 1.3;
-    expect(wire.positions.length / 3).toBe(2 * SPHERE_VERTICES + 64);
+    expect(wire.positions.length / 3).toBe(2 * SPHERE_VERTICES + 4 * BOND_SEGMENTS);
     expect(sphereRadius(wire, PAIR[0], 0)).toBeCloseTo(radius, 7);
     expect(ringRadius(wire, 2, 0)).toBeCloseTo(radius, 7);
     expect(ringRadius(wire, 2, 1)).toBeCloseTo(radius, 7);
@@ -111,8 +128,8 @@ describe('molecular appearance geometry', () => {
   it.each<MoleculeAppearance['bondStyle']>(['tapered', 'cylinder'])('keeps %s bonds connected at the midpoint', (bondStyle) => {
     const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle });
     const start = 2 * SPHERE_VERTICES;
-    expect(mesh.positions[(start + 16) * 3]).toBeCloseTo(0.6, 7);
-    expect(mesh.positions[(start + 48) * 3]).toBeCloseTo(0.6, 7);
+    expect(mesh.positions[(start + BOND_SEGMENTS) * 3]).toBeCloseTo(0.6, 7);
+    expect(mesh.positions[(start + 3 * BOND_SEGMENTS) * 3]).toBeCloseTo(0.6, 7);
     expect(ringRadius(mesh, 2, 1) / ringRadius(mesh, 2, 0)).toBeCloseTo(bondStyle === 'tapered' ? 0.72 : 1, 6);
     assertValidWinding(mesh);
   });
@@ -135,16 +152,16 @@ describe('molecular appearance geometry', () => {
     const atoms: Atom[] = [PAIR[0], { element: 'H', x: 1, y: 0, z: 0 }];
     const mesh = buildMolecule(atoms, { ...OPTIONS, style, atomScale: 0.4, hydrogenScale: 0.4, bondScale: 2 });
     const atomVertices = 2 * SPHERE_VERTICES;
-    const halfBondVertices = 32 + 17;
+    const halfBondVertices = 3 * BOND_SEGMENTS + 1;
     expect(mesh.positions.length / 3).toBe(atomVertices + 2 * halfBondVertices);
     for (let half = 0; half < 2; half += 1) {
       const first = atomVertices + half * halfBondVertices;
-      const capCenter = first + 32;
+      const capCenter = first + 2 * BOND_SEGMENTS;
       const endpoint = atoms[half].x;
       const direction = half === 0 ? 1 : -1;
-      for (let index = 0; index < 16; index += 1) {
+      for (let index = 0; index < BOND_SEGMENTS; index += 1) {
         expect(mesh.positions[(first + index) * 3]).toBeCloseTo(endpoint, 7);
-        expect(mesh.positions[(first + 16 + index) * 3]).toBeCloseTo(0.5, 7);
+        expect(mesh.positions[(first + BOND_SEGMENTS + index) * 3]).toBeCloseTo(0.5, 7);
         expect(mesh.positions[(capCenter + 1 + index) * 3]).toBeCloseTo(endpoint, 7);
       }
       expect(Array.from(mesh.positions.slice(capCenter * 3, capCenter * 3 + 3))).toEqual([endpoint, 0, 0]);
@@ -153,8 +170,8 @@ describe('molecular appearance geometry', () => {
       for (let index = 0; index < mesh.indices.length; index += 3) {
         if (mesh.indices[index] === capCenter) capFaces.push(Array.from(mesh.indices.slice(index, index + 3)));
       }
-      expect(capFaces).toHaveLength(16);
-      for (const face of capFaces) expect(face.slice(1).every(vertex => vertex > capCenter && vertex <= capCenter + 16)).toBe(true);
+      expect(capFaces).toHaveLength(BOND_SEGMENTS);
+      for (const face of capFaces) expect(face.slice(1).every(vertex => vertex > capCenter && vertex <= capCenter + BOND_SEGMENTS)).toBe(true);
     }
     assertValidWinding(mesh);
   });
@@ -163,9 +180,9 @@ describe('molecular appearance geometry', () => {
     const atoms: Atom[] = [PAIR[0], { element: 'H', x: 1, y: 0, z: 0 }];
     const mesh = buildMolecule(atoms, { ...OPTIONS, hydrogenScale: 0.82 });
     const hydrogenRadius = sphereRadius(mesh, atoms[1], 1);
-    const hydrogenBond = 2 * SPHERE_VERTICES + 32;
+    const hydrogenBond = 2 * SPHERE_VERTICES + 2 * BOND_SEGMENTS;
     const offset = atoms[1].x - mesh.positions[hydrogenBond * 3];
-    expect(mesh.positions.length / 3).toBe(2 * SPHERE_VERTICES + 64);
+    expect(mesh.positions.length / 3).toBe(2 * SPHERE_VERTICES + 4 * BOND_SEGMENTS);
     expect(offset).toBeGreaterThan(0);
     expect(offset).toBeLessThan(0.12 * 0.87 * BOHR);
     const rimDistance = Math.hypot(offset, mesh.positions[hydrogenBond * 3 + 1], mesh.positions[hydrogenBond * 3 + 2]);

@@ -214,12 +214,13 @@ def generate(output: Path, spacing: float, margin: float, check: bool) -> None:
                            "description": "Bundled Molpro RKS LOCAL(IBO) wavefunction; companion input specifies PBE and TZVPP.",
                            "energyNote": "Localized-orbital energy values copied from XML, not canonical HOMO/LUMO eigenvalues."},
                 "grid": {"dimensions": dimensions.tolist(), "originBohr": origin.tolist(),
-                         "spacingBohr": spacing, "coordinateUnit": "bohr", "valueUnit": "bohr^(-3/2)",
+                         "spacingBohr": spacing, "marginBohr": margin,
+                         "coordinateUnit": "bohr", "valueUnit": "bohr^(-3/2)",
                          "normalization": "Source coefficients and signs retained; no rescaling.",
                          "maximumOverlapError": float(np.max(np.abs(overlap - np.eye(len(SELECTION)))))},
                 "orbitals": orbitals}
     if check:
-        fine_spacing = 0.15
+        fine_spacing = min(0.15, round(spacing * 0.875, 6))
         fine, _, _ = sample_grid(wavefunction, fine_spacing, 6.0)
         fine_overlap = fine.T @ fine * fine_spacing ** 3
         error = float(np.max(np.abs(fine_overlap - np.eye(len(SELECTION)))))
@@ -245,7 +246,7 @@ def generate(output: Path, spacing: float, margin: float, check: bool) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "webapp/public/data/benzene")
-    parser.add_argument("--spacing", type=float, default=0.20, help="Grid step in bohr")
+    parser.add_argument("--spacing", type=float, default=0.16, help="Grid step in bohr")
     parser.add_argument("--margin", type=float, default=4.5, help="Margin around atoms in bohr")
     parser.add_argument("--check", action="store_true", help="Also integrate a finer grid and check π parity")
     args = parser.parse_args()

@@ -23,6 +23,7 @@ from generate_demo import ROOT, evaluate, read_wavefunction, write_cube
 
 DEMOS = {
     "feco3no": {
+        "displaySpacingBohr": 0.16,
         "name": "Iron carbonyl nitrosyl",
         "source": "example-data/feco3no_ibos_exp2.xml",
         "input": "example-data/feco3no_ibos_exp2.inp",
@@ -34,6 +35,7 @@ DEMOS = {
         "selectionNote": "IBOs 37 and 41 are displayed by the bundled native demo script; 38 and 42 add occupied localized orbitals from the same source.",
     },
     "re2me8": {
+        "displaySpacingBohr": 0.16,
         "name": "Rhenium methyl dimer",
         "source": "example-data/re2me8-dianion.xml",
         "input": "example-data/Re2Me8_dianion.inp",
@@ -45,6 +47,7 @@ DEMOS = {
         "effectiveCorePotentialNote": "The source has 104 explicitly represented electrons, 120 fewer than the full electron count for this dianion. Its ECP-replaced core orbitals are not reconstructed or displayed.",
     },
     "sn2-intermediate": {
+        "displaySpacingBohr": 0.18,
         "name": "Iron-assisted SN2 intermediate",
         "source": "example-data/trans_b_sn2_intermediate.xml",
         "input": "example-data/trans_b_SN2_intermediate.inp",
@@ -59,7 +62,8 @@ DEMOS = {
 
 
 def sample_bounded_grid(wavefunction: dict, spacing: float, margin: float,
-                        indices: tuple[int, ...]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                        indices: tuple[int, ...], *, max_points: int = 2_500_000
+                        ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Sample a lattice enclosing all atoms, in Gaussian Cube axis order."""
     if not math.isfinite(spacing) or not math.isfinite(margin) or spacing <= 0 or margin <= 0:
         raise ValueError("Spacing and margin must be finite and positive")
@@ -67,8 +71,8 @@ def sample_bounded_grid(wavefunction: dict, spacing: float, margin: float,
     upper = np.ceil((wavefunction["positions"].max(axis=0) + margin) / spacing).astype(int)
     dimensions = upper - lower + 1
     count = math.prod(dimensions.tolist())
-    if count > 2_500_000:
-        raise ValueError(f"Grid has {count} values; expected at most 2,500,000")
+    if count > max_points:
+        raise ValueError(f"Grid has {count} values; expected at most {max_points:,}")
     values = np.empty((count, len(indices)))
     origin = lower * spacing
     for start in range(0, count, 8192):
@@ -144,7 +148,9 @@ def write_provenance(output: Path, manifest: dict) -> None:
         "Gzip compression preserves the Cube text and sampled values.", "",
         "Regenerate the assets and checks from the repository root:", "",
         "```sh",
-        f"python3 webapp/scripts/generate_complex_demos.py --demo {manifest['id']} --check",
+        f"python3 webapp/scripts/generate_complex_demos.py --demo {manifest['id']} "
+        f"--spacing {grid['spacingBohr']:g} --margin {grid['marginBohr']:g}"
+        + (" --check" if validation else ""),
         "```", "",
         "Refresh this document from the existing manifest without resampling:", "",
         "```sh",
@@ -154,9 +160,10 @@ def write_provenance(output: Path, manifest: dict) -> None:
     (output / "PROVENANCE.md").write_text("\n".join(lines))
 
 
-def generate(demo_id: str, output_root: Path, spacing: float = 0.28, margin: float = 5.0,
+def generate(demo_id: str, output_root: Path, spacing: float | None = None, margin: float = 5.0,
              check: bool = False) -> dict:
     config = DEMOS[demo_id]
+    spacing = config["displaySpacingBohr"] if spacing is None else spacing
     source = ROOT / config["source"]
     wavefunction = read_wavefunction(source)
     indices = config["indices"]
@@ -239,8 +246,10 @@ def generate(demo_id: str, output_root: Path, spacing: float = 0.28, margin: flo
         "orbitals": orbitals,
     }
     if check:
-        fine_spacing = 0.20
-        fine, _, fine_dimensions = sample_bounded_grid(wavefunction, fine_spacing, margin + 1, indices)
+        fine_spacing = min(0.20, round(spacing * 0.875, 6))
+        # Validation values are integrated directly and never serialized as browser Cube files.
+        fine, _, fine_dimensions = sample_bounded_grid(wavefunction, fine_spacing, margin + 1, indices,
+                                                      max_points=5_000_000)
         fine_overlap = fine.T @ fine * fine_spacing ** 3
         error = float(np.max(np.abs(fine_overlap - np.eye(len(indices)))))
         if error > 0.01:
@@ -262,7 +271,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo", choices=list(DEMOS) + ["all"], default="all")
     parser.add_argument("--output-root", type=Path, default=ROOT / "webapp/public/data")
-    parser.add_argument("--spacing", type=float, default=0.28, help="Display grid step in bohr")
+    parser.add_argument("--spacing", type=float, help="Display grid step in bohr (default: 0.16; SN2: 0.18)")
     parser.add_argument("--margin", type=float, default=5.0, help="Margin around all atoms in bohr")
     parser.add_argument("--check", action="store_true", help="Also integrate a finer grid with a larger margin")
     parser.add_argument("--provenance-only", action="store_true", help="Refresh provenance documents from existing manifests without resampling")

@@ -147,11 +147,24 @@ presets. It requires WebGL2 and renders at device pixel ratio, capped at 2× and
 `src/render/geometry.ts` ports the original cube-edge links, contour tracing and
 triangle fans from `IvIsoSurface.cpp`. Atom icospheres, tapered bond cylinders,
 element colors and radii follow `IvMesh.cpp`, `IvView3D.cpp` and the native atom
-tables. Cube normals use interpolated finite-difference gradients with the
-inverse-transpose grid transform; the desktop can evaluate analytic orbital
-gradients. Consequently the sampling, antialiasing and exact pixel output are
-not identical to every desktop preset. The Qt widget and SCF/IAO/localization
-engines have not been compiled to WebAssembly.
+tables. Atom spheres use subdivision level 4 for up to 256 visible atoms and
+native level 3 for larger imports; bonds use 48 radial segments for smoother
+close-up silhouettes without changing radii or connectivity.
+Orbital surfaces use a tensor Catmull–Rom interpolant with three subdivisions
+per source-grid axis and analytic interpolant gradients transformed by the
+inverse-transpose grid matrix. Shared fine-grid edges keep neighboring cells
+connected. A local-sampling workload limit uniformly lowers subdivision to
+two or one for large fields; it is not an exact triangle-count limit.
+`buildOrbital(parsed, isovalue, 1)` retains the native grid mesher and its
+interpolated finite-difference normals for comparisons.
+
+Interpolation preserves every source sample and estimates values between them;
+it does not add wavefunction data. It can introduce between-sample extrema and
+additional contours, especially for coarse or noisy imported fields. Surface
+phases remain gated by the original sampled minimum and maximum. The desktop
+can evaluate analytic orbital gradients directly. Consequently the sampling,
+antialiasing and exact pixel output are not identical to every desktop preset.
+The Qt widget and SCF/IAO/localization engines have not been compiled to WebAssembly.
 
 The web app has no third-party molecular renderer. It uses React for the
 interface and Vite for bundling; the original C++ application is unchanged.
@@ -164,16 +177,20 @@ IBOs, not canonical HOMO/LUMO orbitals. The two surface colors encode the sign o
 charge. Demo isovalues are amplitudes in bohr^(-3/2); imported Cube fields keep
 their original scalar units and are labeled as unspecified fields.
 
-The benzene visual grid is 89 × 93 × 47 with 0.20-bohr spacing. Its lower isovalue
+The benzene visual grid is 111 × 117 × 59 with 0.16-bohr spacing. Its lower isovalue
 limit of 0.015 keeps the surfaces inside the sampled box. A larger, finer grid
-gives a maximum selected-orbital overlap error of 1.24e-4. These grids are for
+gives a maximum selected-orbital overlap error of 1.19e-4. These grids are for
 visualization, not quantitative integration.
 
 See [`public/data/benzene/PROVENANCE.md`](public/data/benzene/PROVENANCE.md) and
 the accompanying JSON manifest for the source hash and numerical checks.
 
-The three metal-complex demos use 0.28-bohr display grids, with a larger
-0.20-bohr grid for overlap checks. Each folder under `public/data/` includes
+The iron carbonyl nitrosyl and rhenium demos also use 0.16-bohr display grids,
+about 11.8 points/Å, close to native IboView's default 12 points/Å. The larger
+SN2 example uses 0.18 bohr to keep each Cube below the 35 MiB limit. These are
+direct evaluations of the source wavefunctions; the stored Cube samples use
+no interpolation or amplitude rescaling. Larger, finer grids check the overlaps at 0.14 bohr
+(iron/rhenium) and 0.1575 bohr (SN2). Each folder under `public/data/` includes
 its original-source hashes, occupations, grid bounds, normalization checks and
 selection notes in `manifest.json` and `PROVENANCE.md`. Rhenium uses the source's
 ECP valence wavefunction; replaced core orbitals are not reconstructed.

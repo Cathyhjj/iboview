@@ -49,38 +49,62 @@ function assertWinding(mesh: MeshData): void {
 }
 
 describe('native IboView molecule geometry', () => {
-  it('uses native subdivision level 3, atom radius, carbon gray, and outward winding', () => {
+  it('uses detailed spheres with native atom radius, carbon gray, and outward winding', () => {
     const mesh = buildMolecule([{ element: 'C', x: 0, y: 0, z: 0 }], { hydrogens: true, style: 'ball-stick' });
-    expect(mesh.positions.length / 3).toBe(642);
-    expect(mesh.indices.length / 3).toBe(1280);
+    expect(mesh.positions.length / 3).toBe(2562);
+    expect(mesh.indices.length / 3).toBe(5120);
     expect(Math.hypot(...mesh.positions.slice(0, 3))).toBeCloseTo(0.4 * 1.43 * BOHR, 7);
     expect(Array.from(mesh.colors.slice(0, 4))).toEqual([Math.fround(0.6), Math.fround(0.6), Math.fround(0.6), 1]);
     assertMesh(mesh);
     assertWinding(mesh);
   });
 
+  it('keeps sphere edge chord error below 0.1% of the analytic radius', () => {
+    const mesh = buildMolecule([{ element: 'C', x: 0, y: 0, z: 0 }], { hydrogens: true, style: 'spheres' });
+    const radius = 0.4 * 1.43 * BOHR;
+    let worstChordError = 0;
+    for (let index = 0; index < mesh.indices.length; index += 3) {
+      for (let edge = 0; edge < 3; edge += 1) {
+        const a = mesh.indices[index + edge], b = mesh.indices[index + (edge + 1) % 3];
+        const midpoint = [0, 1, 2].map(axis => (mesh.positions[a * 3 + axis] + mesh.positions[b * 3 + axis]) / 2);
+        worstChordError = Math.max(worstChordError, 1 - Math.hypot(...midpoint) / radius);
+      }
+    }
+    expect(worstChordError).toBeLessThan(0.001);
+  });
+
+  it('bounds sphere detail for large imports using only visible atoms', () => {
+    const atoms = Array.from({ length: 257 }, (_, index) => ({ element: index ? 'H' : 'C', x: index * 3, y: 0, z: 0 }));
+    const large = buildMolecule(atoms, { hydrogens: true, style: 'spheres' });
+    expect(large.positions.length / 3).toBe(257 * 642);
+    expect(large.indices.length / 3).toBe(257 * 1280);
+    const hidden = buildMolecule(atoms, { hydrogens: false, style: 'spheres' });
+    expect(hidden.positions.length / 3).toBe(2562);
+    expect(Math.hypot(...large.positions.slice(0, 3))).toBeCloseTo(Math.hypot(...hidden.positions.slice(0, 3)), 7);
+  });
+
   it('detects the two water bonds, colors each half, and hides hydrogen geometry', () => {
     const atoms = parseXYZ('3\nWater\nO 0 0 0\nH .757 .586 0\nH -.757 .586 0').atoms;
     const mesh = buildMolecule(atoms, { hydrogens: true, style: 'ball-stick' });
-    expect(mesh.positions.length / 3).toBe(3 * 642 + 4 * 32);
-    expect(mesh.indices.length / 3).toBe(3 * 1280 + 4 * 32);
+    expect(mesh.positions.length / 3).toBe(3 * 2562 + 4 * 96);
+    expect(mesh.indices.length / 3).toBe(3 * 5120 + 4 * 96);
     assertMesh(mesh);
     assertWinding(mesh);
     const hidden = buildMolecule(atoms, { hydrogens: false, style: 'ball-stick' });
-    expect(hidden.positions.length / 3).toBe(642);
+    expect(hidden.positions.length / 3).toBe(2562);
   });
 
   it('uses native covalent cutoff and supports stick and van der Waals representations', () => {
     const cutoff = 1.3 * 2 * 1.4551 * BOHR;
     const atoms = [{ element: 'C', x: 0, y: 0, z: 0 }, { element: 'C', x: cutoff - 1e-5, y: 0, z: 0 }];
     const stick = buildMolecule(atoms, { hydrogens: true, style: 'stick' });
-    expect(stick.positions.length / 3).toBe(2 * 642 + 2 * 32);
+    expect(stick.positions.length / 3).toBe(2 * 2562 + 2 * 96);
     expect(Math.hypot(...stick.positions.slice(0, 3))).toBeCloseTo(0.28 * BOHR, 7);
     assertWinding(stick);
     atoms[1].x = cutoff + 1e-5;
-    expect(buildMolecule(atoms, { hydrogens: true, style: 'ball-stick' }).positions.length / 3).toBe(2 * 642);
+    expect(buildMolecule(atoms, { hydrogens: true, style: 'ball-stick' }).positions.length / 3).toBe(2 * 2562);
     const filled = buildMolecule(atoms, { hydrogens: true, style: 'space-fill' });
-    expect(filled.positions.length / 3).toBe(2 * 642);
+    expect(filled.positions.length / 3).toBe(2 * 2562);
     expect(Math.hypot(...filled.positions.slice(0, 3))).toBeCloseTo(3.2125 * BOHR, 7);
   });
 });
@@ -148,7 +172,7 @@ describe('native IboView isosurface geometry', () => {
   it.each([0, 1, -1])('recolors signed surfaces without changing topology or normals for field mode %s', (mode) => {
     const field = ([x]: Vec3) => mode === 0 ? x : mode * Math.abs(x);
     const parsed = cube([3, 3, 3], [-1, -1, -1], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], field);
-    const mesh = buildOrbital(parsed, 0.4);
+    const mesh = buildOrbital(parsed, 0.4, 1);
     const original = { positions: mesh.positions, normals: mesh.normals, indices: mesh.indices, colors: mesh.colors };
     const positions = mesh.positions.slice(), normals = mesh.normals.slice(), indices = mesh.indices.slice();
     expect(mesh.positiveVertexCount).toBe(mode === -1 ? 0 : mode === 1 ? 18 : 9);
@@ -176,7 +200,7 @@ describe('native IboView isosurface geometry', () => {
 
   it('preserves the native two-triangle cube face and outward normals for both phases', () => {
     const parsed = cube([3, 3, 3], [-1, -1, -1], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], ([x]) => x);
-    const mesh = buildOrbital(parsed, 0.4);
+    const mesh = buildOrbital(parsed, 0.4, 1);
     expect(mesh.positions.length / 3).toBe(18);
     expect(mesh.indices.length / 3).toBe(16);
     for (let vertex = 0; vertex < mesh.positions.length / 3; vertex += 1) {
