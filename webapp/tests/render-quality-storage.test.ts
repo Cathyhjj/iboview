@@ -12,16 +12,16 @@ describe('browser-local render quality', () => {
     expect(loadRenderQuality(storage)).toBe(quality);
   });
 
-  it('preserves current smooth rendering for a new browser or invalid stored value', () => {
-    expect(DEFAULT_RENDER_QUALITY).toBe('smooth');
+  it('defaults to fast rendering for a new browser or invalid stored value', () => {
+    expect(DEFAULT_RENDER_QUALITY).toBe('fast');
     for (const value of [null, '', 'high', '3', '{broken']) {
-      expect(loadRenderQuality({ getItem: () => value })).toBe('smooth');
+      expect(loadRenderQuality({ getItem: () => value })).toBe('fast');
     }
   });
 
   it('keeps rendering usable with blocked storage', () => {
     const blocked = { getItem: () => { throw new Error('Denied'); }, setItem: () => { throw new Error('Denied'); } };
-    expect(loadRenderQuality(blocked)).toBe('smooth');
+    expect(loadRenderQuality(blocked)).toBe('fast');
     expect(() => saveRenderQuality('fast', blocked)).not.toThrow();
   });
 });

@@ -28,9 +28,9 @@ needed by the browser.
   (9 atoms), a rhenium methyl dimer (34 atoms), and an iron-assisted SN2
   intermediate (32 atoms). Switch molecules with the **Demo example** menu.
 - Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
-  **Render quality** above the view offers Fast, Balanced and Smooth. Lower quality
-  uses fewer surface triangles for faster preparation and rotation; Smooth retains
-  the detailed default. The choice is saved in this browser and applies to PNG and
+  **Render quality** above the view offers Fast, Balanced and Smooth, with Fast as
+  the default. Lower quality uses fewer surface triangles for faster preparation
+  and rotation. The choice is saved in this browser and applies to PNG and
   interactive HTML exports. It does not change source samples, isovalue or camera.
   The last view is remembered per molecular geometry, including after refresh;
   Reset view replaces it with the default view. The last demo reopens automatically;
@@ -151,7 +151,7 @@ presets. It requires WebGL2 and renders at device pixel ratio, capped at 2× and
 `src/render/geometry.ts` ports the original cube-edge links, contour tracing and
 triangle fans from `IvIsoSurface.cpp`. Atom icospheres, tapered bond cylinders,
 element colors and radii follow `IvMesh.cpp`, `IvView3D.cpp` and the native atom
-tables. Atom spheres use subdivision level 4 for up to 256 visible atoms and
+tables. In Smooth mode, atom spheres use subdivision level 4 for up to 256 visible atoms and
 native level 3 for larger imports; bonds use 48 radial segments for smoother
 close-up silhouettes without changing radii or connectivity.
 Orbital surfaces use a tensor Catmull–Rom interpolant with three subdivisions

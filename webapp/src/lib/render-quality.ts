@@ -1,6 +1,6 @@
 export type RenderQuality = 'fast' | 'balanced' | 'smooth';
 
-export const DEFAULT_RENDER_QUALITY: RenderQuality = 'smooth';
+export const DEFAULT_RENDER_QUALITY: RenderQuality = 'fast';
 
 export const RENDER_QUALITY_SETTINGS = {
   fast: { orbitalRefinement: 1, sphereSubdivisions: 3, bondSegments: 16 },

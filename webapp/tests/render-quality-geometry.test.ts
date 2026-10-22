@@ -32,9 +32,9 @@ function faceRadialError(mesh: MeshData, radius: number): number {
 }
 
 describe('render quality geometry', () => {
-  it('keeps smooth quality as the backward-compatible default', () => {
-    expect(DEFAULT_RENDER_QUALITY).toBe('smooth');
-    expect(buildMolecule(PAIR, OPTIONS)).toEqual(buildMolecule(PAIR, OPTIONS, 'smooth'));
+  it('uses fast quality by default', () => {
+    expect(DEFAULT_RENDER_QUALITY).toBe('fast');
+    expect(buildMolecule(PAIR, OPTIONS)).toEqual(buildMolecule(PAIR, OPTIONS, 'fast'));
   });
 
   it('reduces sphere cost in fast and balanced modes without moving the analytic surface', () => {

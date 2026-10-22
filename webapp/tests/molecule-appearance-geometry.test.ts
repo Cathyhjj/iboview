@@ -35,8 +35,8 @@ function assertValidWinding(mesh: MeshData) {
 
 describe('molecular appearance geometry', () => {
   it('preserves the native ball-and-stick mesh with explicit default settings', () => {
-    const native = buildMolecule(PAIR, OPTIONS);
-    expect(buildMolecule(PAIR, DEFAULT_MOLECULE_APPEARANCE)).toEqual(native);
+    const native = buildMolecule(PAIR, OPTIONS, 'smooth');
+    expect(buildMolecule(PAIR, DEFAULT_MOLECULE_APPEARANCE, 'smooth')).toEqual(native);
     expect(native.positions.length / 3).toBe(2 * SPHERE_VERTICES + 4 * BOND_SEGMENTS);
     expect(sphereRadius(native, PAIR[0], 0)).toBeCloseTo(0.4 * 1.43 * BOHR, 7);
     expect(vertexColor(native, 0)).toEqual(rgba(0x999999));
@@ -46,7 +46,7 @@ describe('molecular appearance geometry', () => {
   });
 
   it.each<MoleculeAppearance['bondStyle']>(['tapered', 'cylinder'])('keeps %s bond ring chord error below 0.22% of the analytic radius', (bondStyle) => {
-    const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle });
+    const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle }, 'smooth');
     let worstChordError = 0;
     for (let ring = 0; ring < 4; ring += 1) {
       const base = 2 * SPHERE_VERTICES + ring * BOND_SEGMENTS;
@@ -63,8 +63,8 @@ describe('molecular appearance geometry', () => {
 
   it('scales atoms and hydrogens without changing bonds, coordinates, or connectivity', () => {
     const atoms: Atom[] = [...PAIR, { element: 'H', x: -1, y: 0, z: 0 }];
-    const native = buildMolecule(atoms, OPTIONS);
-    const resized = buildMolecule(atoms, { ...OPTIONS, atomScale: 1.6, hydrogenScale: 0.6 });
+    const native = buildMolecule(atoms, OPTIONS, 'smooth');
+    const resized = buildMolecule(atoms, { ...OPTIONS, atomScale: 1.6, hydrogenScale: 0.6 }, 'smooth');
     for (let index = 0; index < atoms.length; index += 1) {
       expect(sphereRadius(resized, atoms[index], index) / sphereRadius(native, atoms[index], index))
         .toBeCloseTo(index === 2 ? 0.96 : 1.6, 6);
@@ -77,8 +77,8 @@ describe('molecular appearance geometry', () => {
   });
 
   it('changes only bond width when sizing bonds in the ball-and-stick representation', () => {
-    const native = buildMolecule(PAIR, OPTIONS);
-    const widened = buildMolecule(PAIR, { ...OPTIONS, bondScale: 1.8 });
+    const native = buildMolecule(PAIR, OPTIONS, 'smooth');
+    const widened = buildMolecule(PAIR, { ...OPTIONS, bondScale: 1.8 }, 'smooth');
     expect(widened.positions.slice(0, 2 * SPHERE_VERTICES * 3)).toEqual(native.positions.slice(0, 2 * SPHERE_VERTICES * 3));
     expect(ringRadius(widened, 2, 0) / ringRadius(native, 2, 0)).toBeCloseTo(1.8, 6);
     expect(ringRadius(widened, 2, 1) / ringRadius(native, 2, 1)).toBeCloseTo(1.8, 6);
@@ -88,12 +88,12 @@ describe('molecular appearance geometry', () => {
 
   it('uses endpoint colors for each bond half and permits independent uniform bond color', () => {
     const options = { ...OPTIONS, atomPalette: 'uniform', atomColor: '#66aacc', elementColors: { O: '#ee7788' } } as const;
-    const element = buildMolecule(PAIR, options);
+    const element = buildMolecule(PAIR, options, 'smooth');
     expect(vertexColor(element, 0)).toEqual(rgba(0x66aacc));
     expect(vertexColor(element, SPHERE_VERTICES)).toEqual(rgba(0xee7788));
     expect(vertexColor(element, 2 * SPHERE_VERTICES)).toEqual(rgba(0x66aacc));
     expect(vertexColor(element, 2 * SPHERE_VERTICES + 2 * BOND_SEGMENTS)).toEqual(rgba(0xee7788));
-    const uniform = buildMolecule(PAIR, { ...options, bondColorMode: 'uniform', bondColor: '#226644' });
+    const uniform = buildMolecule(PAIR, { ...options, bondColorMode: 'uniform', bondColor: '#226644' }, 'smooth');
     expect(uniform.positions).toEqual(element.positions);
     expect(uniform.normals).toEqual(element.normals);
     expect(uniform.indices).toEqual(element.indices);
@@ -105,17 +105,17 @@ describe('molecular appearance geometry', () => {
   });
 
   it('builds separate spheres and allows bonds to be hidden without altering atom geometry', () => {
-    const spheres = buildMolecule(PAIR, { ...OPTIONS, style: 'spheres' });
-    expect(spheres).toEqual(buildMolecule(PAIR, { ...OPTIONS, bonds: false }));
+    const spheres = buildMolecule(PAIR, { ...OPTIONS, style: 'spheres' }, 'smooth');
+    expect(spheres).toEqual(buildMolecule(PAIR, { ...OPTIONS, bonds: false }, 'smooth'));
     expect(spheres.positions.length / 3).toBe(2 * SPHERE_VERTICES);
-    const filling = buildMolecule(PAIR, { ...OPTIONS, style: 'space-fill', atomScale: 0.8 });
+    const filling = buildMolecule(PAIR, { ...OPTIONS, style: 'space-fill', atomScale: 0.8 }, 'smooth');
     expect(filling.positions.length / 3).toBe(2 * SPHERE_VERTICES);
     expect(sphereRadius(filling, PAIR[0], 0)).toBeCloseTo(3.2125 * BOHR * 0.8, 6);
     assertValidWinding(spheres);
   });
 
   it('draws wireframes as narrow round tubes with matching spherical joints', () => {
-    const wire = buildMolecule(PAIR, { ...OPTIONS, style: 'wireframe', bondScale: 1.3, bondStyle: 'tapered' });
+    const wire = buildMolecule(PAIR, { ...OPTIONS, style: 'wireframe', bondScale: 1.3, bondStyle: 'tapered' }, 'smooth');
     const radius = 0.28 * BOHR * 0.28 * 1.3;
     expect(wire.positions.length / 3).toBe(2 * SPHERE_VERTICES + 4 * BOND_SEGMENTS);
     expect(sphereRadius(wire, PAIR[0], 0)).toBeCloseTo(radius, 7);
@@ -126,7 +126,7 @@ describe('molecular appearance geometry', () => {
   });
 
   it.each<MoleculeAppearance['bondStyle']>(['tapered', 'cylinder'])('keeps %s bonds connected at the midpoint', (bondStyle) => {
-    const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle });
+    const mesh = buildMolecule(PAIR, { ...OPTIONS, bondStyle }, 'smooth');
     const start = 2 * SPHERE_VERTICES;
     expect(mesh.positions[(start + BOND_SEGMENTS) * 3]).toBeCloseTo(0.6, 7);
     expect(mesh.positions[(start + 3 * BOND_SEGMENTS) * 3]).toBeCloseTo(0.6, 7);
@@ -141,8 +141,8 @@ describe('molecular appearance geometry', () => {
       { ...OPTIONS, atomScale: 2, bondScale: 0.25, atomPalette: 'pastel', bondStyle: 'cylinder' },
       { ...OPTIONS, style: 'wireframe', atomScale: 1.5, bondScale: 0.7 },
     ] satisfies (Pick<MoleculeAppearance, 'style' | 'hydrogens'> & Partial<MoleculeAppearance>)[]) {
-      const connected = buildMolecule([PAIR[0], { ...PAIR[1], x: cutoff - 0.00001 }], options);
-      const disconnected = buildMolecule([PAIR[0], { ...PAIR[1], x: cutoff + 0.00001 }], options);
+      const connected = buildMolecule([PAIR[0], { ...PAIR[1], x: cutoff - 0.00001 }], options, 'smooth');
+      const disconnected = buildMolecule([PAIR[0], { ...PAIR[1], x: cutoff + 0.00001 }], options, 'smooth');
       expect(connected.positions.length / 3).toBeGreaterThan(2 * SPHERE_VERTICES);
       expect(disconnected.positions.length / 3).toBe(2 * SPHERE_VERTICES);
     }
@@ -150,7 +150,7 @@ describe('molecular appearance geometry', () => {
 
   it.each(['ball-stick', 'stick', 'wireframe'] as const)('closes exposed %s bond ends when atoms and hydrogens are much smaller than bonds', (style) => {
     const atoms: Atom[] = [PAIR[0], { element: 'H', x: 1, y: 0, z: 0 }];
-    const mesh = buildMolecule(atoms, { ...OPTIONS, style, atomScale: 0.4, hydrogenScale: 0.4, bondScale: 2 });
+    const mesh = buildMolecule(atoms, { ...OPTIONS, style, atomScale: 0.4, hydrogenScale: 0.4, bondScale: 2 }, 'smooth');
     const atomVertices = 2 * SPHERE_VERTICES;
     const halfBondVertices = 3 * BOND_SEGMENTS + 1;
     expect(mesh.positions.length / 3).toBe(atomVertices + 2 * halfBondVertices);
@@ -178,7 +178,7 @@ describe('molecular appearance geometry', () => {
 
   it('reduces sculpted bond offsets to stay inside moderately reduced atoms without adding exposed caps', () => {
     const atoms: Atom[] = [PAIR[0], { element: 'H', x: 1, y: 0, z: 0 }];
-    const mesh = buildMolecule(atoms, { ...OPTIONS, hydrogenScale: 0.82 });
+    const mesh = buildMolecule(atoms, { ...OPTIONS, hydrogenScale: 0.82 }, 'smooth');
     const hydrogenRadius = sphereRadius(mesh, atoms[1], 1);
     const hydrogenBond = 2 * SPHERE_VERTICES + 2 * BOND_SEGMENTS;
     const offset = atoms[1].x - mesh.positions[hydrogenBond * 3];
@@ -193,9 +193,9 @@ describe('molecular appearance geometry', () => {
   it('hides hydrogens and their bonds in every representation', () => {
     const atoms: Atom[] = [PAIR[0], { element: 'H', x: 1, y: 0, z: 0 }];
     for (const style of ['ball-stick', 'stick', 'wireframe', 'spheres', 'space-fill'] as const) {
-      const mesh = buildMolecule(atoms, { ...OPTIONS, hydrogens: false, style });
+      const mesh = buildMolecule(atoms, { ...OPTIONS, hydrogens: false, style }, 'smooth');
       expect(mesh.positions.length / 3).toBe(SPHERE_VERTICES);
-      expect(mesh).toEqual(buildMolecule([PAIR[0]], { ...OPTIONS, hydrogens: false, style }));
+      expect(mesh).toEqual(buildMolecule([PAIR[0]], { ...OPTIONS, hydrogens: false, style }, 'smooth'));
     }
   });
 });
