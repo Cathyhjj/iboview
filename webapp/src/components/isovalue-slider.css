@@ -1,0 +1,47 @@
+#isovalue {
+  --isovalue-accent: #8b50d8;
+  --isovalue-empty: #d7d3dc;
+  --isovalue-fill: calc(8px + (100% - 16px) * var(--isovalue-position));
+  --isovalue-track: linear-gradient(to right,
+    var(--isovalue-accent) var(--isovalue-fill),
+    var(--isovalue-empty) var(--isovalue-fill));
+  appearance: none;
+  background: transparent;
+}
+
+#isovalue::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--isovalue-track);
+}
+
+#isovalue::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--isovalue-accent);
+}
+
+#isovalue::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--isovalue-track);
+}
+
+#isovalue::-moz-range-progress { background: transparent; }
+
+#isovalue::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--isovalue-accent);
+}
+
+[data-theme="dark"] #isovalue {
+  --isovalue-accent: var(--primary);
+  --isovalue-empty: #45424c;
+}

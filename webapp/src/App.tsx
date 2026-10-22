@@ -34,6 +34,7 @@ import './components/demo-selector.css';
 import './components/project-controls.css';
 import './components/png-export.css';
 import './components/config-controls.css';
+import './components/isovalue-slider.css';
 
 const PNG_TRANSPARENCY_STORAGE_KEY = 'iboview-png-transparent-background-v1';
 const PNG_SCALE_STORAGE_KEY = 'iboview-png-scale-v1';
@@ -648,6 +649,7 @@ export default function App() {
   const peak = scene?.volume ? Math.max(Math.abs(scene.volume.range[0]), Math.abs(scene.volume.range[1])) : 1;
   const isoMax = isDemo ? 0.12 : importedRange(peak).max;
   const isoMin = isDemo ? manifest?.isovalueMin ?? 0.015 : importedRange(peak).min;
+  const isoPosition = Math.max(0, Math.min(1, (isoMax - settings.isovalue) / (isoMax - isoMin)));
   const noSurface = hasVolume && settings.isovalue > peak;
   const ready = renderStatus === 'ready' && !busy && !configBusy;
   const phaseColors = useMemo(() => orbitalPhaseColors(colors), [colors]);
@@ -795,8 +797,8 @@ export default function App() {
             <Toggle label="Orbital surface" checked={settings.surface && hasVolume} disabled={!hasVolume} onChange={() => update('surface', !settings.surface)} />
             <div className={`surface-settings ${!hasVolume || !settings.surface ? 'muted-controls' : ''}`}>
               <label className="slider-label" htmlFor="isovalue"><span>Isovalue <small>{isDemo ? 'a.u.' : 'file units'}</small></span><output>{formatValue(settings.isovalue)}</output></label>
-              <input id="isovalue" type="range" min={isoMin} max={isoMax} step={isDemo ? 0.001 : 'any'} value={settings.isovalue} disabled={!hasVolume || !settings.surface} onChange={event => update('isovalue', Number(event.target.value))} />
-              <div className="range-labels"><span>Diffuse</span><span>Compact</span></div>
+              <input id="isovalue" type="range" dir="rtl" style={{ '--isovalue-position': isoPosition } as CSSProperties} min={isoMin} max={isoMax} step={isDemo ? 0.001 : 'any'} value={settings.isovalue} disabled={!hasVolume || !settings.surface} onChange={event => update('isovalue', Number(event.target.value))} />
+              <div className="range-labels"><span>Compact</span><span>Diffuse</span></div>
               <label className="slider-label" htmlFor="opacity"><span>Opacity</span><output>{Math.round(settings.opacity * 100)}%</output></label>
               <input id="opacity" type="range" min="0.2" max="1" step="0.01" value={settings.opacity} disabled={!hasVolume || !settings.surface} onChange={event => update('opacity', Number(event.target.value))} />
               <OrbitalColorControl value={colors} onChange={setColors} disabled={!hasVolume || !settings.surface} isDemo={isDemo} />
