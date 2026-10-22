@@ -6,12 +6,15 @@ import combineSource from '../../../shader/pixel5_combine_dp.glsl?raw';
 import passSource from '../../../shader/vertex5_pass.glsl?raw';
 import antialiasSource from '../../../shader/pixel5_fakeAA2.glsl?raw';
 import { normalizeCameraState, type CameraState } from '../lib/camera-state';
+import { cropTransparentCanvas } from '../lib/png-crop';
 import type { MeshData } from './geometry';
 
 type Vec3 = [number, number, number];
 type Quaternion = [number, number, number, number];
 export type MaterialPreset = 'shiny' | 'soft' | 'extra';
 export type RendererTheme = 'light' | 'dark';
+export type PNGExportScale = 1 | 2 | 4;
+export interface PNGExportOptions { transparentBackground?: boolean; scale?: PNGExportScale; cropTransparent?: boolean }
 export interface Bounds { min: Vec3; max: Vec3 }
 interface GpuMesh { vao: WebGLVertexArrayObject; buffers: WebGLBuffer[]; count: number; colorBuffer?: WebGLBuffer; colorLength?: number }
 interface Target { framebuffer: WebGLFramebuffer; color: WebGLTexture; depth?: WebGLTexture }
@@ -19,12 +22,26 @@ interface Program { handle: WebGLProgram; uniforms: Map<string, WebGLUniformLoca
 
 const PRELUDE = '#version 300 es\nprecision highp float;\nprecision highp int;\nprecision highp sampler2D;\n';
 const PEEL_LAYERS = 12;
+// Each export pixel needs three color buffers, two depth buffers and canvas copies.
+const MAX_EXPORT_PIXELS = 32 * 1024 * 1024;
 const BACKGROUNDS: Record<RendererTheme, Vec3> = { light: [1, 1, 1], dark: [9 / 255, 9 / 255, 11 / 255] };
 // The browser's theme supplies the fog target; desktop shader files stay intact.
 const themedCommonSource = 'uniform vec3 BackgroundColor;\n' + commonSource.replace(
   'return mix(color.xyz, vec3(1.0,1.0,1.0), rz);',
   'return mix(color.xyz, BackgroundColor, rz);',
 );
+// Filter premultiplied RGBA, using the current backdrop only for edge detection.
+const exportAntialiasSource = 'uniform bool TransparentBackground;\nuniform vec3 BackgroundColor;\n' + antialiasSource
+  .replace(/\b(\d+\.\d*)f\b/g, '$1')
+  .replace('return rgb.y * (0.587/0.299) + rgb.x;', `
+    vec3 visible = rgb.rgb;
+    if (TransparentBackground) visible += BackgroundColor * (1.0 - rgb.a);
+    return visible.y * (0.587/0.299) + visible.x;`)
+  .replace('fragColor = vec4(fxaaMain());', `
+    fragColor = fxaaMain();
+    if (TransparentBackground) {
+        fragColor.rgb = fragColor.a > 0.0 ? fragColor.rgb / fragColor.a : vec3(0.0);
+    }`);
 const MATERIALS: Record<MaterialPreset, { atom: number[]; orbital: number[] }> = {
   shiny: { atom: [0.04, 0.46, 0.34, 0.80], orbital: [0.04, 0.50, 0.34, 0.78] },
   soft: { atom: [0.28, 0.52, 0.20, -0.5], orbital: [0.26, 0.52, 0.40, -0.5] },
@@ -84,15 +101,14 @@ export class NativeIboRenderer {
   private readonly listeners: Array<[string, EventListener]> = [];
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: true,
+    const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: true,
       premultipliedAlpha: false, preserveDrawingBuffer: true });
     if (!gl) throw new Error('This viewer requires WebGL 2. Enable graphics acceleration in your browser.');
     this.gl = gl;
     this.opaqueProgram = this.makeProgram(vertexSource, themedCommonSource + '\n' + opaqueSource);
     this.peelProgram = this.makeProgram(vertexSource, themedCommonSource + '\n' + peelSource);
     this.combineProgram = this.makeProgram(passSource, combineSource);
-    // GLSL ES omits the desktop float-literal suffix; the FXAA math is unchanged.
-    this.antialiasProgram = this.makeProgram(passSource, antialiasSource.replace(/\b(\d+\.\d*)f\b/g, '$1'));
+    this.antialiasProgram = this.makeProgram(passSource, exportAntialiasSource);
     this.quad = this.makeQuad();
     this.listen('webglcontextlost', (event) => {
       event.preventDefault();
@@ -372,13 +388,22 @@ export class NativeIboRenderer {
     return target;
   }
 
-  resize() {
+  resize(scale: PNGExportScale = 1) {
     this.assertAvailable();
+    if (scale !== 1 && scale !== 2 && scale !== 4) throw new Error('Choose a PNG resolution of 1×, 2× or 4×.');
     const gl = this.gl;
     const ratio = Math.min(2, window.devicePixelRatio || 1);
-    const limit = Math.min(4096, gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
-    const width = Math.max(1, Math.min(limit, Math.round(this.canvas.clientWidth * ratio)));
-    const height = Math.max(1, Math.min(limit, Math.round(this.canvas.clientHeight * ratio)));
+    const deviceLimit = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+    const limit = Math.min(4096, deviceLimit);
+    const width = Math.max(1, Math.min(limit, Math.round(this.canvas.clientWidth * ratio))) * scale;
+    const height = Math.max(1, Math.min(limit, Math.round(this.canvas.clientHeight * ratio))) * scale;
+    if (scale > 1) {
+      const viewport = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array;
+      if (width > deviceLimit || height > deviceLimit || width > viewport[0] || height > viewport[1]
+        || width * height > MAX_EXPORT_PIXELS) {
+        throw new Error(`The ${width} × ${height} PNG is too large for this viewer. Choose a lower resolution or reduce the viewer size.`);
+      }
+    }
     if (width === this.canvas.width && height === this.canvas.height && this.targets.length) return;
     this.canvas.width = width;
     this.canvas.height = height;
@@ -421,9 +446,9 @@ export class NativeIboRenderer {
     gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_INT, 0);
   }
 
-  render() {
+  render({ transparentBackground = false, scale = 1 }: PNGExportOptions = {}) {
     if (this.destroyed || this.contextLost) return;
-    this.resize();
+    this.resize(scale);
     const gl = this.gl, [first, second, accumulation] = this.targets;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.activeTexture(gl.TEXTURE0);
@@ -436,7 +461,8 @@ export class NativeIboRenderer {
     gl.cullFace(gl.BACK);
     gl.frontFace(gl.CCW);
     gl.bindFramebuffer(gl.FRAMEBUFFER, first.framebuffer);
-    gl.clearColor(...this.background, 1);
+    if (transparentBackground) gl.clearColor(0, 0, 0, 0);
+    else gl.clearColor(...this.background, 1);
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.draw(this.opaque, this.opaqueProgram, false);
@@ -464,7 +490,7 @@ export class NativeIboRenderer {
         gl.disable(gl.DEPTH_TEST);
         gl.depthMask(false);
         gl.enable(gl.BLEND);
-        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.useProgram(this.combineProgram.handle);
         gl.bindTexture(gl.TEXTURE_2D, next.color);
         gl.uniform1i(this.uniform(this.combineProgram, 'LayerColor'), 0);
@@ -485,6 +511,8 @@ export class NativeIboRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.uniform1i(this.uniform(this.antialiasProgram, 'SourceImage'), 0);
+    gl.uniform1i(this.uniform(this.antialiasProgram, 'TransparentBackground'), transparentBackground ? 1 : 0);
+    gl.uniform3f(this.uniform(this.antialiasProgram, 'BackgroundColor'), ...this.background);
     gl.uniform1f(this.uniform(this.antialiasProgram, 'FilterStepH'), 1 / this.canvas.width);
     gl.uniform1f(this.uniform(this.antialiasProgram, 'FilterStepV'), 1 / this.canvas.height);
     gl.bindVertexArray(this.quad.vao);
@@ -502,10 +530,25 @@ export class NativeIboRenderer {
     return [(x / halfWidth + 1) * this.canvas.clientWidth / 2, (1 - y / this.halfHeight) * this.canvas.clientHeight / 2];
   }
 
-  exportPNG(): string {
+  exportCanvas(options: PNGExportOptions = {}): HTMLCanvasElement {
     this.assertAvailable();
-    this.render();
-    return this.canvas.toDataURL('image/png');
+    try {
+      this.render(options);
+      const output = document.createElement('canvas');
+      output.width = this.canvas.width;
+      output.height = this.canvas.height;
+      const context = output.getContext('2d');
+      if (!context) throw new Error('Unable to create the PNG export canvas.');
+      context.drawImage(this.canvas, 0, 0);
+      return output;
+    } finally {
+      if (options.transparentBackground || (options.scale ?? 1) !== 1) this.render();
+    }
+  }
+
+  exportPNG(options: PNGExportOptions = {}): string {
+    const output = this.exportCanvas(options);
+    return (options.transparentBackground && options.cropTransparent ? cropTransparentCanvas(output) : output).toDataURL('image/png');
   }
 
   private assertAvailable() {

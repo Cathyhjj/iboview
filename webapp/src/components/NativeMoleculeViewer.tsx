@@ -1,13 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { NativeIboRenderer } from '../render/NativeIboRenderer';
+import { NativeIboRenderer, type PNGExportOptions } from '../render/NativeIboRenderer';
 import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
 import { cameraKeyForStructure, loadCameraState, saveCameraState } from '../lib/camera-storage';
+import { cropTransparentCanvas } from '../lib/png-crop';
 import type { CameraState } from '../lib/camera-state';
 import type { DisplaySettings, Scene } from '../types';
 
 export interface ViewerHandle {
   orient: (orientation: 'default' | 'top' | 'side') => void;
-  exportPNG: () => string | undefined;
+  exportPNG: (options?: PNGExportOptions) => string | undefined;
   zoom: (factor: number) => void;
   getCameraState: () => CameraState | undefined;
 }
@@ -59,22 +60,21 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
     }
   }
 
-  function drawLabels() {
-    const layer = labels.current;
+  function drawLabels(output?: HTMLCanvasElement) {
+    const layer = output ?? labels.current;
     const engine = renderer.current;
     if (!layer || !canvas.current || !engine) return;
-    if (layer.width !== canvas.current.width || layer.height !== canvas.current.height) {
+    if (!output && (layer.width !== canvas.current.width || layer.height !== canvas.current.height)) {
       layer.width = canvas.current.width;
       layer.height = canvas.current.height;
     }
     const context = layer.getContext('2d');
     if (!context) return;
-    context.clearRect(0, 0, layer.width, layer.height);
+    if (!output) context.clearRect(0, 0, layer.width, layer.height);
     const state = current.current;
     if (!state.scene || !state.settings.labels) return;
-    const scale = layer.width / (layer.clientWidth || 1);
     context.save();
-    context.scale(scale, scale);
+    context.scale(layer.width / (canvas.current.clientWidth || 1), layer.height / (canvas.current.clientHeight || 1));
     context.font = '500 11px Figtree, sans-serif';
     state.scene.structure.atoms.forEach((atom, index) => {
       if (atom.element === 'H' && !state.settings.hydrogens) return;
@@ -97,17 +97,11 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       engine?.orient(direction);
       drawLabels();
     },
-    exportPNG: () => {
+    exportPNG: (options) => {
       if (!renderer.current || !canvas.current) return;
-      renderer.current.render();
-      drawLabels();
-      const output = document.createElement('canvas');
-      output.width = canvas.current.width;
-      output.height = canvas.current.height;
-      const context = output.getContext('2d')!;
-      context.drawImage(canvas.current, 0, 0);
-      if (labels.current && current.current.settings.labels) context.drawImage(labels.current, 0, 0);
-      return output.toDataURL('image/png');
+      const output = renderer.current.exportCanvas(options);
+      drawLabels(output);
+      return (options?.transparentBackground && options.cropTransparent ? cropTransparentCanvas(output) : output).toDataURL('image/png');
     },
     zoom: (factor) => { renderer.current?.zoom(factor); drawLabels(); },
     getCameraState: () => renderer.current?.getCameraState(),

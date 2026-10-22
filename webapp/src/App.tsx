@@ -29,8 +29,13 @@ import type { CameraState } from './lib/camera-state';
 import type { DemoManifest, DisplaySettings, Scene } from './types';
 import './components/demo-selector.css';
 import './components/project-controls.css';
+import './components/png-export.css';
 import './components/config-controls.css';
 
+const PNG_TRANSPARENCY_STORAGE_KEY = 'iboview-png-transparent-background-v1';
+const PNG_SCALE_STORAGE_KEY = 'iboview-png-scale-v1';
+const PNG_CROP_STORAGE_KEY = 'iboview-png-crop-transparent-v1';
+const pngScaleValue = (value: string | null): 1 | 2 | 4 => value === '1' ? 1 : value === '2' ? 2 : 4;
 const DEFAULTS: DisplaySettings = {
   ...DEFAULT_MOLECULE_APPEARANCE,
   ...DEFAULT_DISPLAY_PREFERENCES,
@@ -73,6 +78,18 @@ export default function App() {
   const [pendingId, setPendingId] = useState('');
   const [pendingDemo, setPendingDemo] = useState('');
   const [toast, setToast] = useState('');
+  const [transparentBackground, setTransparentBackground] = useState(() => {
+    try { return localStorage.getItem(PNG_TRANSPARENCY_STORAGE_KEY) !== 'false'; }
+    catch { return true; }
+  });
+  const [pngScale, setPngScale] = useState<1 | 2 | 4>(() => {
+    try { return pngScaleValue(localStorage.getItem(PNG_SCALE_STORAGE_KEY)); }
+    catch { return 4; }
+  });
+  const [cropTransparent, setCropTransparent] = useState(() => {
+    try { return localStorage.getItem(PNG_CROP_STORAGE_KEY) === 'true'; }
+    catch { return false; }
+  });
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [saveName, setSaveName] = useState('');
@@ -224,6 +241,21 @@ export default function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#17171c' : '#faf9f5');
     try { localStorage.setItem('iboview-theme', theme); } catch { /* Storage may be unavailable in private sessions. */ }
   }, [theme]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PNG_TRANSPARENCY_STORAGE_KEY, String(transparentBackground)); }
+    catch { /* Keep export usable when browser storage is unavailable. */ }
+  }, [transparentBackground]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PNG_SCALE_STORAGE_KEY, String(pngScale)); }
+    catch { /* Keep export usable when browser storage is unavailable. */ }
+  }, [pngScale]);
+
+  useEffect(() => {
+    try { localStorage.setItem(PNG_CROP_STORAGE_KEY, String(cropTransparent)); }
+    catch { /* Keep export usable when browser storage is unavailable. */ }
+  }, [cropTransparent]);
 
   const { isovalue, surface } = settings;
   useEffect(() => {
@@ -589,18 +621,23 @@ export default function App() {
   }
 
   function exportPNG() {
-    const png = viewer.current?.exportPNG();
-    if (!png) return;
-    const bytes = Uint8Array.from(atob(png.split(',')[1]), character => character.charCodeAt(0));
-    const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${scene?.name.replace(/[^a-zA-Z0-9_-]/g, '-') ?? 'molecule'}-${scene?.orbital?.id ?? 'view'}.png`;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    setToast('PNG download requested for the current view.');
+    setError('');
+    try {
+      const png = viewer.current?.exportPNG({ transparentBackground, scale: pngScale, cropTransparent });
+      if (!png) return;
+      const bytes = Uint8Array.from(atob(png.split(',')[1]), character => character.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${scene?.name.replace(/[^a-zA-Z0-9_-]/g, '-') ?? 'molecule'}-${scene?.orbital?.id ?? 'view'}.png`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setToast(transparentBackground ? 'Transparent PNG download requested for the current view.' : 'PNG download requested for the current view.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The PNG could not be exported.');
+    }
   }
 
   const isDemo = scene?.kind === 'demo';
@@ -638,7 +675,20 @@ export default function App() {
             onClick={() => { projectLibraryDialog.current?.showModal(); void refreshSavedProjects(); }}><FolderOpen size={16} />Projects{savedProjects.length > 0 && <span className="project-count">{savedProjects.length}</span>}</button>
           <button className="button secondary" disabled={!ready || saving} onClick={() => void saveProject()} title="Save Project (⌘/Ctrl+S)">{saving ? <LoaderCircle size={16} className="loading-spin" /> : <Save size={16} />}{saving ? 'Saving…' : 'Save Project'}</button>
           <button className="button secondary" disabled={!ready || saving} onClick={() => void saveProject(true)} title="Save As (⌘/Ctrl+Shift+S)"><Copy size={16} />Save As</button>
-          <button className="button secondary" disabled={!ready} onClick={exportPNG}><Download size={16} />Export PNG</button>
+          <div className="png-export-control" role="group" aria-label="PNG export">
+            <button className="button secondary" disabled={!ready} onClick={exportPNG}><Download size={16} />Export PNG</button>
+            <label className="png-export-resolution">Resolution
+              <select aria-label="PNG resolution" value={pngScale} onChange={event => setPngScale(pngScaleValue(event.target.value))}
+                title="Multiply the current view's pixel width and height">
+                <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
+              </select>
+            </label>
+            <label className="png-export-option"><input type="checkbox" checked={transparentBackground}
+              onChange={event => setTransparentBackground(event.target.checked)} />Transparent background</label>
+            <label className="png-export-option" title="Requires Transparent background; removes only fully transparent margins">
+              <input type="checkbox" checked={cropTransparent} disabled={!transparentBackground}
+                onChange={event => setCropTransparent(event.target.checked)} />Crop transparent margins</label>
+          </div>
           <button className="button primary" disabled={saving || busy || configBusy} onClick={() => void openFile()}><Upload size={16} />Open file</button>
           <input ref={input} className="visually-hidden" type="file" accept=".xyz,.cube,.cub,.json" aria-label="Open molecular file or project" onChange={event => void importFile(event.target.files?.[0])} />
         </div>

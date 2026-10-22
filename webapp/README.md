@@ -59,6 +59,16 @@ needed by the browser.
 - Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
   grids, skew grids and Fortran D exponents. Files are read in the browser.
 - PNG export of the current rendered view, including labels when enabled.
+  **Resolution** below **Export PNG** selects 1×, 2× or 4× the current view's
+  pixel width and height, with a fresh render at the selected size. It defaults
+  to 4× and remembers your last selection in this browser across reloads.
+  **Transparent background** below **Export PNG** is enabled by default and
+  remembers your choice in this browser across reloads. Uncheck it to use the
+  current light/night background.
+  **Crop transparent margins** trims fully transparent space around the rendered
+  molecule, orbitals and labels. It is off by default and remembers your last
+  choice across reloads. It is available when **Transparent background** is on;
+  turning transparency off keeps your crop preference for the next transparent export.
 - **Save Project** stores the current project in this browser; later saves update
   the same project. **Save As** creates an independent named copy. **Projects**
   opens a searchable list with names, molecular formulas, sizes and saved times.
