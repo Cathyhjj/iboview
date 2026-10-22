@@ -14,7 +14,7 @@ import './components/demo-selector.css';
 
 const DEFAULTS: DisplaySettings = {
   isovalue: 0.045, opacity: 0.55, surface: true, hydrogens: true,
-  labels: false, style: 'ball-stick', spinning: false, material: 'shiny',
+  labels: false, style: 'ball-stick', spinning: false, material: 'extra',
   ...orbitalPhaseColors(DEFAULT_ORBITAL_COLORS),
 };
 const formatValue = (value: number) => value > 0 && (value < 0.001 || value >= 100) ? value.toExponential(2) : value.toFixed(3);

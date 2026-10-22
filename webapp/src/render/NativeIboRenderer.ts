@@ -69,7 +69,7 @@ export class NativeIboRenderer {
   private halfHeight = 5;
   private fittedHalfHeight = 5;
   private cameraDistance = 100 * 0.529177;
-  private preset: MaterialPreset = 'shiny';
+  private preset: MaterialPreset = 'extra';
   private opacity = 0.55;
   private background: Vec3 = BACKGROUNDS.light;
   private frame = 0;
