@@ -4,6 +4,7 @@ import {
   Eye, SlidersHorizontal, X, FileText, Info, Hexagon, Layers3, ArrowUpRight,
   Check, MousePointer2, LoaderCircle, ShieldCheck, Moon, Sun, Save, Copy, Trash2, FolderOpen,
 } from 'lucide-react';
+import { InteractiveExportControl } from './components/InteractiveExportControl';
 import { MoleculeViewer, type ViewerHandle } from './components/NativeMoleculeViewer';
 import { OrbitalColorControl } from './components/OrbitalColorControl';
 import { MolecularAppearanceControl } from './components/MolecularAppearanceControl';
@@ -675,6 +676,7 @@ export default function App() {
             onClick={() => { projectLibraryDialog.current?.showModal(); void refreshSavedProjects(); }}><FolderOpen size={16} />Projects{savedProjects.length > 0 && <span className="project-count">{savedProjects.length}</span>}</button>
           <button className="button secondary" disabled={!ready || saving} onClick={() => void saveProject()} title="Save Project (⌘/Ctrl+S)">{saving ? <LoaderCircle size={16} className="loading-spin" /> : <Save size={16} />}{saving ? 'Saving…' : 'Save Project'}</button>
           <button className="button secondary" disabled={!ready || saving} onClick={() => void saveProject(true)} title="Save As (⌘/Ctrl+Shift+S)"><Copy size={16} />Save As</button>
+          <InteractiveExportControl disabled={!ready} getView={() => viewer.current?.getInteractiveView()} />
           <div className="png-export-control" role="group" aria-label="PNG export">
             <button className="button secondary" disabled={!ready} onClick={exportPNG}><Download size={16} />Export PNG</button>
             <label className="png-export-resolution">Resolution

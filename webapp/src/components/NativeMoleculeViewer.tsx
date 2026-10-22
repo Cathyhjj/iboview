@@ -3,6 +3,7 @@ import { NativeIboRenderer, type PNGExportOptions } from '../render/NativeIboRen
 import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
 import { cameraKeyForStructure, loadCameraState, saveCameraState } from '../lib/camera-storage';
 import { cropTransparentCanvas } from '../lib/png-crop';
+import type { InteractiveView } from '../lib/interactive-scene';
 import type { CameraState } from '../lib/camera-state';
 import type { DisplaySettings, Scene } from '../types';
 
@@ -11,6 +12,7 @@ export interface ViewerHandle {
   exportPNG: (options?: PNGExportOptions) => string | undefined;
   zoom: (factor: number) => void;
   getCameraState: () => CameraState | undefined;
+  getInteractiveView: () => InteractiveView | undefined;
 }
 
 interface Props {
@@ -105,6 +107,18 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
     },
     zoom: (factor) => { renderer.current?.zoom(factor); drawLabels(); },
     getCameraState: () => renderer.current?.getCameraState(),
+    getInteractiveView: () => {
+      const { scene, settings, theme } = current.current;
+      if (!scene || !renderer.current || !molecule.current || !orbital.current || !canvas.current) return;
+      return {
+        title: scene.name, source: scene.fileName, orbital: settings.surface && scene.volume ? scene.orbital?.label ?? 'Orbital isosurface' : undefined,
+        isovalue: settings.isovalue, molecule: molecule.current.mesh, orbitalMesh: orbital.current.mesh,
+        camera: renderer.current.getCameraState(), aspect: canvas.current.clientWidth / Math.max(1, canvas.current.clientHeight),
+        theme, settings: { material: settings.material, atomMaterial: settings.atomMaterial, opacity: settings.opacity, spinning: settings.spinning },
+        labels: settings.labels ? scene.structure.atoms.flatMap((atom, index) => atom.element === 'H' && !settings.hydrogens
+          ? [] : [{ text: `${atom.element}${index + 1}`, x: atom.x, y: atom.y, z: atom.z }]) : [],
+      };
+    },
   }));
 
   useEffect(() => {

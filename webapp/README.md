@@ -69,6 +69,20 @@ needed by the browser.
   molecule, orbitals and labels. It is off by default and remembers your last
   choice across reloads. It is available when **Transparent background** is on;
   turning transparency off keeps your crop preference for the next transparent export.
+- **Export HTML** downloads a single offline `.html` viewer of the current molecule
+  and visible orbital. It embeds the exact rendered meshes, vertex colors, original
+  shaders, materials, opacity, labels, font, theme and camera. No server, CDN,
+  external files or browser storage is required; WebGL 2 is required. Drag to rotate,
+  scroll or use +/− to zoom, and use Auto rotate / Pause rotation. Reset view restores
+  the exported camera. The initial automatic-rotation state follows the workspace.
+  The export dialog also provides an iframe snippet: upload the HTML alongside your
+  webpage, or change its `src` to the hosted URL. The host must permit script-enabled
+  iframes. Exported views are limited to 25 MB for Figure Editor import compatibility.
+  Use **Import HTML chart** in Figure Editor, then double-click the placed view to
+  interact. Save snapshot retains a static preview; Figure Editor's existing static
+  exports, including HTML report, still use that snapshot. Reopening interaction
+  restores the exported view. HTML includes only the selected, already-computed
+  surface; use the editable project below to change orbitals or isovalue.
 - **Save Project** stores the current project in this browser; later saves update
   the same project. **Save As** creates an independent named copy. **Projects**
   opens a searchable list with names, molecular formulas, sizes and saved times.
