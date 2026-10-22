@@ -5,6 +5,22 @@ on their website fails to compile with modern compilers that actually require C+
 this repo contains our own "fork" of the project in order to incorporate necessary patches ourselves (and potentially also some quality-of-life
 improvements).
 
+## Web preview
+
+A browser-based molecular/orbital viewer is available in [`webapp/`](webapp/README.md).
+It includes a real benzene IBO demo, local XYZ/Cube import, interactive 3D controls,
+and PNG export. The WebGL2 renderer reuses IboView's original GLSL lighting and
+depth-peeling shaders, with the desktop shiny material presets.
+
+```bash
+cd webapp
+npm ci
+npm run dev
+```
+
+Open <http://127.0.0.1:5173>. Node.js 20.19+ or 22.12+ is required. The web preview
+does not require Qt or Python; the desktop application below remains independent.
+
 ## Building
 
 ### Installing dependencies

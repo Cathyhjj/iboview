@@ -1,0 +1,86 @@
+:root { color-scheme: light; }
+.header-actions { display: flex; align-items: center; gap: 13px; }
+.header-center { margin-right: 0; }
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 34px; padding: 0 10px; border: 1px solid var(--border);
+  border-radius: 7px; color: var(--muted); font-size: 11px; white-space: nowrap;
+}
+.theme-toggle:hover { color: var(--primary); background: var(--primary-pale); }
+
+/* Dr.XAS's default dark palette; phase colors retain their scientific meaning. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: hsl(240 10% 10%);
+  --foreground: hsl(0 0% 98%);
+  --surface: #09090b;
+  --raised: hsl(240 5% 13%);
+  --secondary: hsl(240 3.7% 15.9%);
+  --primary: hsl(255 92% 76%);
+  --primary-pale: hsl(255 30% 18%);
+  --border: hsl(270 2% 19%);
+  --muted: hsl(240 5% 64.9%);
+  --success: hsl(142 69% 58%);
+  --danger: hsl(0 72% 66%);
+  color: var(--foreground);
+  background: var(--background);
+}
+[data-theme="dark"] ::selection { background: #49356f; color: #fff; }
+[data-theme="dark"] :is(.app-header, .panel, .viewport-stage) { background: var(--surface); }
+[data-theme="dark"] :is(.brand, .orbital-copy strong, .scene-label strong, .viewer-error h3, .about-dialog h2) { color: var(--foreground); }
+[data-theme="dark"] :is(.brand-mark, .button.primary) { color: var(--background); }
+[data-theme="dark"] .button.primary:hover { background: #bca4fc; border-color: #bca4fc; }
+[data-theme="dark"] :is(.preview-badge, .count, .demo-tag) {
+  background: var(--secondary); color: var(--muted); border-color: var(--border);
+}
+[data-theme="dark"] :is(
+  .header-center, .header-center strong, .icon-button, .eyebrow, .panel-label,
+  .formula, .file-line, .section-caption, .orbital-copy small, .hint-card,
+  .hint-card p, .demo-link, .viewport-title, .viewport-mode, .scene-label > span,
+  .phase-legend, .view-controls button, .viewport-footer, .slider-label,
+  .slider-label small, .range-labels, .phase-colors span, .select-label,
+  .structure-settings .toggle-row, dt, .page-footer, .material-control label,
+  .about-dialog p, .viewer-error p
+) { color: var(--muted); }
+[data-theme="dark"] :is(.section-divider, .viewport-tools > span, .control-divider) { background: var(--border); }
+[data-theme="dark"] :is(
+  .viewport-header, .viewport-footer, .settings-section, .orbital-copy small span,
+  .iso-legend, .button.secondary, select, .hint-card, .molecule-symbol,
+  .viewport-tools, .view-controls, .about-dialog, .material-control, .data-details
+) { border-color: var(--border); }
+[data-theme="dark"] :is(.subtle-separator, .footer-dot) { color: var(--border); }
+[data-theme="dark"] .success-text { color: var(--success); }
+[data-theme="dark"] .render-indicator i { background: var(--success); }
+[data-theme="dark"] .render-indicator.failed i { background: var(--danger); }
+[data-theme="dark"] :is(.button.secondary, select, .material-control select, .hint-card, .molecule-symbol) { background: var(--raised); }
+[data-theme="dark"] :is(select, .material-control select, dd) { color: #d4d4dc; }
+[data-theme="dark"] :is(.molecule-symbol, .text-link, .orbital-item.selected .orbital-copy strong) { color: var(--primary); }
+[data-theme="dark"] .molecule-symbol span { border-color: var(--primary); }
+[data-theme="dark"] .orbital-item:hover { background: var(--raised); }
+[data-theme="dark"] :is(.orbital-item.selected, .imported-item) { background: var(--primary-pale); border-color: #473760; }
+[data-theme="dark"] :is(.imported-item, .imported-item p) { color: #c9b5e8; }
+[data-theme="dark"] :is(.viewport-tools, .view-controls) { background: #202023f2; }
+[data-theme="dark"] :is(.icon-button:hover:not(:disabled), .view-controls button:hover:not(:disabled), .view-controls button.active, .button.secondary:hover:not(:disabled)) {
+  background: var(--primary-pale); color: var(--primary); border-color: #473760;
+}
+[data-theme="dark"] :is(.demo-link:hover, .text-link:hover) { color: #c9b5ff; }
+[data-theme="dark"] .switch { background: #45424c; }
+[data-theme="dark"] .switch.on { background: var(--primary); }
+[data-theme="dark"] .switch span { background: #f4f4f5; }
+[data-theme="dark"] .switch.on span { background: var(--background); }
+[data-theme="dark"] input[type="range"] { accent-color: var(--primary); }
+[data-theme="dark"] .slider-label output { color: var(--primary); background: var(--primary-pale); }
+[data-theme="dark"] :is(.loading-badge, .viewer-notice) { background: #242035f2; border-color: #473760; color: #c9b5e8; }
+[data-theme="dark"] .viewer-error { background: var(--surface); color: var(--primary); }
+[data-theme="dark"] .error-banner { background: #301a20; color: #f8a0a7; border-color: #603039; }
+[data-theme="dark"] .toast { background: var(--raised); color: var(--foreground); border: 1px solid var(--border); box-shadow: 0 8px 25px #0005; }
+[data-theme="dark"] .about-dialog { background: var(--raised); color: var(--foreground); box-shadow: 0 20px 80px #0008; }
+[data-theme="dark"] .about-dialog::backdrop { background: #0009; }
+[data-theme="dark"] .about-dialog code { color: #d2baff; background: var(--primary-pale); }
+
+@media (max-width: 700px) {
+  .header-actions { gap: 5px; }
+  .theme-toggle { width: 34px; padding: 0; }
+  .theme-toggle span { display: none; }
+  [data-theme="dark"] .orbital-item:not(.selected) { border-color: var(--border); }
+}

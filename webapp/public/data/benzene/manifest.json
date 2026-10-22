@@ -1,0 +1,111 @@
+{
+  "id": "benzene",
+  "name": "Benzene",
+  "formula": "C6H6",
+  "atomCount": 12,
+  "xyzUrl": "/data/benzene/benzene.xyz",
+  "defaultOrbitalId": "ibo-19",
+  "method": "PBE / TZVPP · IBO",
+  "orbitalType": "LOCAL(IBO)",
+  "basisFunctions": 270,
+  "occupiedOrbitals": 21,
+  "source": {
+    "file": "example-data/benzene.xml",
+    "input": "example-data/benzene.inp",
+    "sha256": "ccc303d64590582f1c1e5bf8af781062ab8720459d83cdf2a54a3cde385897ec",
+    "description": "Bundled Molpro RKS LOCAL(IBO) wavefunction; companion input specifies PBE and TZVPP.",
+    "energyNote": "Localized-orbital energy values copied from XML, not canonical HOMO/LUMO eigenvalues."
+  },
+  "grid": {
+    "dimensions": [
+      89,
+      93,
+      47
+    ],
+    "originBohr": [
+      -8.8,
+      -9.200000000000001,
+      -4.6000000000000005
+    ],
+    "spacingBohr": 0.2,
+    "coordinateUnit": "bohr",
+    "valueUnit": "bohr^(-3/2)",
+    "normalization": "Source coefficients and signs retained; no rescaling.",
+    "maximumOverlapError": 0.0020658833034240542
+  },
+  "orbitals": [
+    {
+      "id": "ibo-19",
+      "label": "π IBO 19",
+      "sourceIndex": 19,
+      "type": "pi",
+      "description": "Localized π orbital with opposite phases above and below the ring.",
+      "occupation": 2.0,
+      "energyHartree": -0.265198,
+      "cubeUrl": "/data/benzene/ibo-19.cube",
+      "isovalue": 0.045,
+      "gridNorm": 0.9979358378930699
+    },
+    {
+      "id": "ibo-20",
+      "label": "π IBO 20",
+      "sourceIndex": 20,
+      "type": "pi",
+      "description": "Localized π orbital with opposite phases above and below the ring.",
+      "occupation": 2.0,
+      "energyHartree": -0.265198,
+      "cubeUrl": "/data/benzene/ibo-20.cube",
+      "isovalue": 0.045,
+      "gridNorm": 0.997934116696576
+    },
+    {
+      "id": "ibo-21",
+      "label": "π IBO 21",
+      "sourceIndex": 21,
+      "type": "pi",
+      "description": "Localized π orbital with opposite phases above and below the ring.",
+      "occupation": 2.0,
+      "energyHartree": -0.265186,
+      "cubeUrl": "/data/benzene/ibo-21.cube",
+      "isovalue": 0.045,
+      "gridNorm": 0.9979355957475918
+    },
+    {
+      "id": "ibo-07",
+      "label": "σ IBO 07",
+      "sourceIndex": 7,
+      "type": "sigma",
+      "description": "Localized in-plane σ bonding orbital.",
+      "occupation": 2.0,
+      "energyHartree": -0.625286,
+      "cubeUrl": "/data/benzene/ibo-07.cube",
+      "isovalue": 0.045,
+      "gridNorm": 1.0003957429622308
+    },
+    {
+      "id": "ibo-13",
+      "label": "σ IBO 13",
+      "sourceIndex": 13,
+      "type": "sigma",
+      "description": "Localized in-plane σ bonding orbital.",
+      "occupation": 2.0,
+      "energyHartree": -0.471206,
+      "cubeUrl": "/data/benzene/ibo-13.cube",
+      "isovalue": 0.045,
+      "gridNorm": 1.0001505217013171
+    }
+  ],
+  "validation": {
+    "fineGridSpacingBohr": 0.15,
+    "fineGridMarginBohr": 6.0,
+    "maximumOverlapError": 0.00012369378940424447,
+    "piReflectionError": 3.58046925441613e-15,
+    "fineGridOrbitalNorms": [
+      0.9998763613465144,
+      0.9998763062105958,
+      0.9998764045378442,
+      1.0000070604554296,
+      0.999977955070286
+    ]
+  }
+}

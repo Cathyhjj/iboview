@@ -1,0 +1,121 @@
+# IboView Web
+
+A first browser version of IboView's structure and orbital viewer. The interface
+uses Dr.XAS's Figtree typography, warm white surfaces and violet accents.
+Night mode follows Dr.XAS's charcoal surfaces and lighter violet accents, including
+the 3D background, depth fade, atom labels and PNG export. The header toggle remembers
+your choice locally; the first visit follows the system appearance.
+
+## Run
+
+From this directory, with Node.js 20.19+ or 22.12+:
+
+```sh
+npm ci
+npm run dev
+```
+
+Open http://127.0.0.1:5173. The server binds only to the local machine. For a
+production build, run `npm run build`, then `npm run preview`. The `dist/`
+directory can be served by an ordinary static web server, including under a
+subdirectory. No API server, external fonts, CDN scripts or Python runtime is
+needed by the browser.
+
+## Included
+
+- Benzene from `example-data/benzene.xml`: three occupied π IBOs and two σ IBOs.
+- Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
+- Shiny chic, Extra shiny and Soft studio lighting; opacity and isovalue controls.
+- Ball-and-stick, sticks, space-filling spheres, hydrogen visibility and atom labels.
+- Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
+  grids, skew grids and Fortran D exponents. Files are read in the browser.
+- PNG export of the current rendered view, including labels when enabled.
+
+The parser rejects malformed input, multiple fields/frames, ghost atoms, files
+over 35 MB, structures with 2,000 or more atoms and grids with 5,000,000 or more
+points. Bonds are inferred from distances with IboView's native covalent radii
+and cutoff; explicit bond orders and multiple-bond decorations are not imported.
+
+## Rendering provenance
+
+`src/render/NativeIboRenderer.ts` is a WebGL2 port of the rendering subset of
+`src/IboView/IvView3D.cpp`. It imports these original files directly at build time:
+
+- `shader/vertex5.glsl` and `shader/vertex5_pass.glsl`
+- `shader/pixel_common.glsl` and `shader/pixel5.glsl`
+- `shader/pixel5_orb_dp.glsl` and `shader/pixel5_combine_dp.glsl`
+- `shader/pixel5_fakeAA2.glsl` for the final antialiasing pass
+
+A GLSL ES 3.00 version/precision prelude is added to the original shader bodies;
+the FXAA shader also has C-style float literal suffixes removed for GLSL ES. The
+browser adapter makes the depth-fade target a background-color uniform for night
+mode. This preserves the three-light shading, 16/64-power specular highlights,
+view-dependent rim opacity, depth fade and back-to-front depth peeling. The web
+renderer uses 32-bit float depth textures and 12 layers, with native back-face
+culling and blending. Material registers come from the bundled `resources/`
+presets. It requires WebGL2 and renders at device pixel ratio, capped at 2× and
+4096 pixels per axis. The original FXAA postpass smooths the final image.
+
+`src/render/geometry.ts` ports the original cube-edge links, contour tracing and
+triangle fans from `IvIsoSurface.cpp`. Atom icospheres, tapered bond cylinders,
+element colors and radii follow `IvMesh.cpp`, `IvView3D.cpp` and the native atom
+tables. Cube normals use interpolated finite-difference gradients with the
+inverse-transpose grid transform; the desktop can evaluate analytic orbital
+gradients. Consequently the sampling, antialiasing and exact pixel output are
+not identical to every desktop preset. The Qt widget and SCF/IAO/localization
+engines have not been compiled to WebAssembly.
+
+The web app has no third-party molecular renderer. It uses React for the
+interface and Vite for bundling; the original C++ application is unchanged.
+
+## Scientific data
+
+The demo evaluates the original 270-function Molpro PBE/TZVPP wavefunction,
+without changing orbital coefficients or signs. These are localized occupied
+IBOs, not canonical HOMO/LUMO orbitals. The two surface colors encode the sign of ψ, not
+charge. Demo isovalues are amplitudes in bohr^(-3/2); imported Cube fields keep
+their original scalar units and are labeled as unspecified fields.
+
+The visual grid is 89 × 93 × 47 with 0.20-bohr spacing. The demo's lower isovalue
+limit of 0.015 keeps the surfaces inside the sampled box. A larger, finer grid
+gives a maximum selected-orbital overlap error of 1.24e-4. These grids are for
+visualization, not quantitative integration.
+
+See [`public/data/benzene/PROVENANCE.md`](public/data/benzene/PROVENANCE.md) and
+the accompanying JSON manifest for the source hash and numerical checks.
+
+## Verify
+
+```sh
+npm test
+npm run build
+```
+
+Importer and geometry tests cover invalid inputs, units, field signs, mesh
+winding, normal directions, skew and reflected grids, and all five real demo
+orbitals. To regenerate the data or check the original basis evaluator, install
+NumPy in a Python environment and run from the repository root:
+
+```sh
+python3 webapp/scripts/generate_demo.py --check
+python3 -m unittest discover -s webapp/tests -p 'data*.py' -v
+```
+
+The scientific checks compile the actual IrCore harmonic function when a C++
+compiler is available, independently compare it with the converter, and verify
+Cube axis ordering, source coordinates and π/σ reflection symmetry.
+
+Browser acceptance checks: initial π IBO render; switching to σ IBO; changing
+material/isovalue/opacity; rotation/zoom and top/side views; hydrogen/label toggles;
+XYZ/Cube import; invalid-file recovery; PNG export; narrow-screen layout;
+light/night switching and persistence after reload.
+Rendering still requires a browser with working WebGL2; a successful build
+alone is not a rendering check.
+
+## License
+
+The native-derived viewer and data follow the repository's GPL-3.0 license and
+Gerald Knizia's IboView attribution. Self-hosted Figtree is licensed under SIL
+OFL 1.1; its full license is in `public/fonts/OFL-Figtree.txt`. React, Lucide,
+TypeScript, Vite and Vitest retain their respective package licenses. The FXAA
+shader retains its original NVIDIA license notice and contributor credits.
