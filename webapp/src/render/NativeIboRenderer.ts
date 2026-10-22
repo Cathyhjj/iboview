@@ -5,6 +5,7 @@ import peelSource from '../../../shader/pixel5_orb_dp.glsl?raw';
 import combineSource from '../../../shader/pixel5_combine_dp.glsl?raw';
 import passSource from '../../../shader/vertex5_pass.glsl?raw';
 import antialiasSource from '../../../shader/pixel5_fakeAA2.glsl?raw';
+import { normalizeCameraState, type CameraState } from '../lib/camera-state';
 import type { MeshData } from './geometry';
 
 type Vec3 = [number, number, number];
@@ -70,6 +71,7 @@ export class NativeIboRenderer {
   private fittedHalfHeight = 5;
   private cameraDistance = 100 * 0.529177;
   private preset: MaterialPreset = 'extra';
+  private atomPreset: MaterialPreset = 'extra';
   private opacity = 0.55;
   private background: Vec3 = BACKGROUNDS.light;
   private frame = 0;
@@ -77,6 +79,7 @@ export class NativeIboRenderer {
   private destroyed = false;
   private contextLost = false;
   private lastTime = 0;
+  private cameraChangeListener?: () => void;
   private pointer?: { id: number; x: number; y: number; pan: boolean };
   private readonly listeners: Array<[string, EventListener]> = [];
 
@@ -119,6 +122,7 @@ export class NativeIboRenderer {
         this.quaternion = multiply(rotation([1, 0, 0], dy * 0.008), this.quaternion);
       }
       this.render();
+      if (dx || dy) this.cameraChangeListener?.();
     });
     const release = (event: Event) => {
       const pointer = event as PointerEvent;
@@ -236,8 +240,9 @@ export class NativeIboRenderer {
     if (Number.isFinite(min[0])) this.bounds = { min, max };
   }
 
-  setMaterial(preset: MaterialPreset, opacity: number) {
+  setMaterial(preset: MaterialPreset, opacity: number, atomPreset: MaterialPreset = preset) {
     this.preset = preset;
+    this.atomPreset = atomPreset;
     this.opacity = Math.max(0, Math.min(1, opacity));
   }
 
@@ -252,6 +257,30 @@ export class NativeIboRenderer {
 
   setTheme(theme: RendererTheme) {
     this.background = BACKGROUNDS[theme];
+  }
+
+  getCameraState(): CameraState {
+    return {
+      rotation: [...this.quaternion], center: [...this.center], pan: [...this.pan],
+      halfHeight: this.halfHeight, fittedHalfHeight: this.fittedHalfHeight, cameraDistance: this.cameraDistance,
+    };
+  }
+
+  restoreCameraState(value: unknown): boolean {
+    const state = normalizeCameraState(value);
+    if (!state) return false;
+    this.quaternion = [...state.rotation];
+    this.center = [...state.center];
+    this.pan = [...state.pan];
+    this.halfHeight = state.halfHeight;
+    this.fittedHalfHeight = state.fittedHalfHeight;
+    this.cameraDistance = state.cameraDistance;
+    this.render();
+    return true;
+  }
+
+  setCameraChangeListener(listener?: () => void) {
+    this.cameraChangeListener = listener;
   }
 
   fit(bounds: Bounds = this.bounds) {
@@ -271,12 +300,15 @@ export class NativeIboRenderer {
     this.pan = [0, 0];
     this.halfHeight = this.fittedHalfHeight;
     this.render();
+    this.cameraChangeListener?.();
   }
 
   zoom(factor: number) {
     if (!Number.isFinite(factor) || factor <= 0) return;
+    const previous = this.halfHeight;
     this.halfHeight = Math.max(this.fittedHalfHeight / 30, Math.min(this.fittedHalfHeight * 20, this.halfHeight / factor));
     this.render();
+    if (this.halfHeight !== previous) this.cameraChangeListener?.();
   }
 
   setSpinning(spinning: boolean) {
@@ -287,12 +319,15 @@ export class NativeIboRenderer {
     if (!spinning || this.destroyed || this.contextLost) return;
     const advance = (time: number) => {
       if (!this.spinning || this.destroyed || this.contextLost) return;
+      let changed = false;
       if (this.lastTime && !this.pointer) {
         const delta = Math.min(50, time - this.lastTime) / 1000;
         this.quaternion = multiply(rotation([0, 1, 0], delta * 0.24), this.quaternion);
+        changed = delta !== 0;
       }
       this.lastTime = time;
       this.render();
+      if (changed) this.cameraChangeListener?.();
       this.frame = requestAnimationFrame(advance);
     };
     this.frame = requestAnimationFrame(advance);
@@ -375,7 +410,7 @@ export class NativeIboRenderer {
     gl.uniformMatrix4fv(this.uniform(program, 'mView'), false, view);
     gl.uniformMatrix4fv(this.uniform(program, 'mProj'), false, projection);
     gl.uniformMatrix3fv(this.uniform(program, 'mNorm'), false, normal);
-    const registers = MATERIALS[this.preset][transparent ? 'orbital' : 'atom'];
+    const registers = transparent ? MATERIALS[this.preset].orbital : MATERIALS[this.atomPreset].atom;
     registers.forEach((value, index) => gl.uniform1f(this.uniform(program, `ShaderReg${index}`), value));
     gl.uniform1f(this.uniform(program, 'FadeWidth'), 9);
     gl.uniform1f(this.uniform(program, 'FadeBias'), 0);
@@ -481,6 +516,7 @@ export class NativeIboRenderer {
   destroy() {
     if (this.destroyed) return;
     this.setSpinning(false);
+    this.cameraChangeListener = undefined;
     this.listeners.forEach(([type, listener]) => this.canvas.removeEventListener(type, listener));
     this.deleteMesh(this.opaque);
     this.deleteMesh(this.transparent);

@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { NativeIboRenderer } from '../render/NativeIboRenderer';
 import { buildMolecule, buildOrbital, recolorOrbital, type MeshData, type OrbitalMeshData } from '../render/geometry';
+import { cameraKeyForStructure, loadCameraState, saveCameraState } from '../lib/camera-storage';
 import type { DisplaySettings, Scene } from '../types';
 
 export interface ViewerHandle {
@@ -29,10 +30,31 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
   const labels = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<NativeIboRenderer | null>(null);
   const moleculeKey = useRef('');
+  const activeCameraKey = useRef('');
+  const cameraDirty = useRef(false);
+  const cameraSaveTimer = useRef<number | undefined>(undefined);
+  const viewKey = useMemo(() => scene ? cameraKeyForStructure(scene.structure.atoms) : '', [scene?.structure]);
   const molecule = useRef<{ key: string; mesh: MeshData } | undefined>(undefined);
   const orbital = useRef<{ text: string; isovalue: number; mesh: OrbitalMeshData; colors?: string } | undefined>(undefined);
   const current = useRef({ scene, settings, theme });
   current.current = { scene, settings, theme };
+
+  function flushCamera() {
+    window.clearTimeout(cameraSaveTimer.current);
+    cameraSaveTimer.current = undefined;
+    if (cameraDirty.current && renderer.current && activeCameraKey.current) {
+      saveCameraState(activeCameraKey.current, renderer.current.getCameraState());
+      cameraDirty.current = false;
+    }
+  }
+
+  function scheduleCameraSave() {
+    if (!activeCameraKey.current) return;
+    cameraDirty.current = true;
+    if (cameraSaveTimer.current === undefined) {
+      cameraSaveTimer.current = window.setTimeout(flushCamera, 250);
+    }
+  }
 
   function drawLabels() {
     const layer = labels.current;
@@ -95,18 +117,29 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       event.preventDefault();
       onStatus('error', 'The graphics context was interrupted. Reload the page to restore the viewer.');
     };
+    const hidden = () => { if (document.visibilityState === 'hidden') flushCamera(); };
     try {
       const engine = new NativeIboRenderer(element);
       renderer.current = engine;
+      engine.setCameraChangeListener(scheduleCameraSave);
       observer = new ResizeObserver(() => { engine.resize(); engine.render(); drawLabels(); });
       observer.observe(host.current);
       element.addEventListener('webglcontextlost', lost);
+      window.addEventListener('pagehide', flushCamera);
+      document.addEventListener('visibilitychange', hidden);
     } catch (cause) {
       onStatus('error', `This renderer needs WebGL2. ${cause instanceof Error ? cause.message : 'Enable graphics acceleration in your browser.'}`);
     }
     return () => {
+      flushCamera();
+      activeCameraKey.current = '';
+      moleculeKey.current = '';
+      molecule.current = undefined;
+      orbital.current = undefined;
       observer?.disconnect();
       element.removeEventListener('webglcontextlost', lost);
+      window.removeEventListener('pagehide', flushCamera);
+      document.removeEventListener('visibilitychange', hidden);
       renderer.current?.destroy();
       renderer.current = null;
     };
@@ -124,7 +157,9 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
     onStatus('loading');
     const timer = window.setTimeout(() => {
       try {
-        const key = `${scene.key}/${settings.style}/${settings.hydrogens}`;
+        const key = JSON.stringify([scene.key, settings.style, settings.hydrogens,
+          settings.atomScale, settings.hydrogenScale, settings.bondScale, settings.bonds, settings.bondStyle,
+          settings.atomPalette, settings.atomColor, settings.elementColors, settings.bondColorMode, settings.bondColor]);
         const newMolecule = moleculeKey.current !== scene.key;
         let changed = false;
         if (molecule.current?.key !== key) {
@@ -137,19 +172,24 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
             mesh: text && scene.volume ? buildOrbital(scene.volume, settings.isovalue) : EMPTY };
           changed = true;
         }
-        const colors = `${settings.positiveColor}/${settings.negativeColor}`;
+        const colors = JSON.stringify([settings.positiveColor, settings.negativeColor, settings.orbitalGradient]);
         const colorsChanged = orbital.current!.colors !== colors;
         if (colorsChanged) {
-          recolorOrbital(orbital.current!.mesh, settings.positiveColor, settings.negativeColor);
+          recolorOrbital(orbital.current!.mesh, settings.positiveColor, settings.negativeColor, settings.orbitalGradient);
           orbital.current!.colors = colors;
         }
         if (changed) engine.setMeshes(molecule.current.mesh, orbital.current!.mesh);
         else if (colorsChanged) engine.setOrbitalColors(orbital.current!.mesh.colors);
-        engine.setMaterial(settings.material, settings.opacity);
+        engine.setMaterial(settings.material, settings.opacity, settings.atomMaterial);
         if (newMolecule) {
+          flushCamera();
+          activeCameraKey.current = '';
           moleculeKey.current = scene.key;
           engine.fit();
           engine.orient('default');
+          const savedView = loadCameraState(viewKey);
+          if (savedView) engine.restoreCameraState(savedView);
+          activeCameraKey.current = viewKey;
         }
         engine.render();
         drawLabels();
@@ -159,7 +199,10 @@ export const MoleculeViewer = forwardRef<ViewerHandle, Props>(function MoleculeV
       }
     }, 45);
     return () => window.clearTimeout(timer);
-  }, [scene, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style, settings.material, settings.positiveColor, settings.negativeColor, onStatus]);
+  }, [scene, viewKey, settings.isovalue, settings.opacity, settings.surface, settings.hydrogens, settings.style,
+    settings.atomScale, settings.hydrogenScale, settings.bondScale, settings.bonds, settings.bondStyle,
+    settings.atomPalette, settings.atomColor, settings.elementColors, settings.bondColorMode, settings.bondColor,
+    settings.atomMaterial, settings.material, settings.positiveColor, settings.negativeColor, settings.orbitalGradient, onStatus]);
 
   useEffect(() => {
     renderer.current?.setSpinning(settings.spinning);

@@ -28,11 +28,32 @@ needed by the browser.
   (9 atoms), a rhenium methyl dimer (34 atoms), and an iron-assisted SN2
   intermediate (32 atoms). Switch molecules with the **Demo example** menu.
 - Interactive rotation, zoom, pan, top/side views and optional continuous rotation.
+  The last view is remembered per molecular geometry, including after refresh;
+  Reset view replaces it with the default view. The last demo reopens automatically;
+  each demo remembers its own selected orbital when switching examples, refreshing,
+  or reopening the page. Reopen an imported file to recover its view; browser preferences
+  do not retain file contents.
 - Shiny chic, Extra shiny and Soft studio lighting; opacity and isovalue controls.
+  Isovalue and orbital-surface visibility are remembered separately for each
+  molecular geometry, including across reloads and orbital changes. Reopening a
+  Cube file restores these settings; XYZ-only imports do not replace them.
 - Orbital color ramps from Dr.XAS, with palette reversal, adjustable color range,
   and individual positive/negative color pickers. Color changes preserve the
   isosurface geometry and camera; PNG exports use the selected colors.
-- Ball-and-stick, sticks, space-filling spheres, hydrogen visibility and atom labels.
+  The picker groups solid phase pairs under Two-color and continuous maps under
+  Gradient. Gradient maps add a gentle neighboring-color tint at lobe tips.
+- Separate Molecule and Orbital appearance tabs, with six illustrated molecular
+  presets: Original, Studio, Porcelain, Skeleton, Jewel and Silver.
+- Ball-and-stick, sticks, wireframe, space filling and separate spheres. Adjust
+  atom size, hydrogen size, bond thickness, sculpted/cylindrical bonds and visibility.
+- Native, Studio, Pastel, Vivid and single-color atom palettes, editable element
+  colors, element-colored or single-color bonds, and independent atom finishes.
+  Each molecular geometry remembers its own palettes, gradient extent/strength,
+  opacity, orbital and atom materials, representation, sizes, bonds and labels.
+  Switching molecules, refreshing, or reopening a file restores that geometry's
+  appearance. New geometries start from the previously saved global preferences.
+  Reset molecular appearance with the Molecule panel's reset button.
+  Sizes change display geometry, not coordinates or distance-inferred connectivity.
 - Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
   grids, skew grids and Fortran D exponents. Files are read in the browser.
 - PNG export of the current rendered view, including labels when enabled.
@@ -139,8 +160,15 @@ from xraylarch-web). The palette modules in `src/lib/palettes/` retain the
 original color stops and interpolation, including Classic and Okabe–Ito.
 The ramp's left selected color maps to +ψ and its right selected color to −ψ;
 categorical palettes use their first two colors. These are phase colors, not
-a continuous scalar scale over the surface. Palette selection is retained
-while switching orbitals or importing files in the same page session.
+a continuous scalar scale over the surface. Gradient mode applies a cosmetic
+transition over the outer 20% of each connected lobe's length along its outward
+axis, from the molecular atom centroid toward the lobe centroid. Centered or
+flat lobes without a defined outward extent stay uniform. The tail moves at most
+8% along the cmap toward the other phase's selected color (limited to a quarter
+of the selected color range). It does not encode amplitude, charge or density.
+The spatial weights are cached with the geometry and are independent of the
+camera. Palette selection is retained while switching orbitals and is remembered
+separately for each molecular geometry across page sessions.
 
 ## License
 

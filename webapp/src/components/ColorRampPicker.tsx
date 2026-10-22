@@ -1,12 +1,12 @@
 // Adapted from Dr.XAS frontend/components/xraylarch-web/artefact-viewers/athena-ramp-picker.tsx
 // (xraylarch-web@cd685adde), including its keyboard and color-range interactions.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown } from "lucide-react"
 import "./color-ramp-picker.css"
 
-export type RampOption<T extends string> = { value: T; label: string; background: string }
+export type RampOption<T extends string> = { value: T; label: string; background: string; group?: string }
 export type RampRange = {
   vmin: number; vmax: number; minGap: number
   onChange: (vmin: number, vmax: number) => void
@@ -95,6 +95,15 @@ export function ColorRampPicker<T extends string>({ label, options, value, onCha
   const menuRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const selected = options.find(option => option.value === value) ?? options[0]
+  const groups: { label?: string; options: { option: RampOption<T>; index: number }[] }[] = []
+  options.forEach((option, index) => {
+    let group = groups[groups.length - 1]
+    if (!group || group.label !== option.group) {
+      group = { label: option.group, options: [] }
+      groups.push(group)
+    }
+    group.options.push({ option, index })
+  })
 
   useLayoutEffect(() => {
     if (!open) return
@@ -129,7 +138,10 @@ export function ColorRampPicker<T extends string>({ label, options, value, onCha
   }, [open])
 
   useEffect(() => {
-    if (open) menuRef.current?.querySelectorAll<HTMLElement>('[role="option"]')[active]?.scrollIntoView?.({ block: "nearest" })
+    const menu = menuRef.current
+    if (!open || !menu) return
+    if (active === 0) menu.scrollTop = 0
+    else menu.querySelectorAll<HTMLElement>('[role="option"]')[active]?.scrollIntoView?.({ block: "nearest" })
   }, [active, open])
 
   useEffect(() => { if (disabled) setOpen(false) }, [disabled])
@@ -175,13 +187,19 @@ export function ColorRampPicker<T extends string>({ label, options, value, onCha
     {range && <ColorRampRange {...range} disabled={disabled || range.disabled} />}
     </div>
     {open && createPortal(<div ref={menuRef} id={menuId} className="ibo-cmap-menu" role="listbox" aria-label={label} style={position}>
-      {options.map((option, index) => <button key={option.value} id={`${menuId}-${index}`} type="button" role="option"
-        aria-label={option.label} aria-selected={option.value === value} tabIndex={-1} title={option.label}
-        className="ibo-cmap-option" data-active={index === active || undefined}
-        onPointerEnter={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(option)}>
-        <span className="ibo-cmap-check" aria-hidden="true">{option.value === value && <Check size={15} strokeWidth={2.5} />}</span>
-        <span className="ibo-cmap-ramp" style={{ background: option.background }} aria-hidden="true" />
-      </button>)}
+      {groups.map((group, groupIndex) => {
+        const items = group.options.map(({ option, index }) => <button key={option.value} id={`${menuId}-${index}`} type="button" role="option"
+          aria-label={option.label} aria-selected={option.value === value} tabIndex={-1} title={option.label}
+          className="ibo-cmap-option" data-active={index === active || undefined}
+          onPointerEnter={() => setActive(index)} onPointerDown={event => event.preventDefault()} onClick={() => choose(option)}>
+          <span className="ibo-cmap-check" aria-hidden="true">{option.value === value && <Check size={15} strokeWidth={2.5} />}</span>
+          <span className="ibo-cmap-ramp" style={{ background: option.background }} aria-hidden="true" />
+        </button>)
+        return group.label ? <div key={groupIndex} className="ibo-cmap-group" role="group" aria-labelledby={`${menuId}-group-${groupIndex}`}>
+          <div id={`${menuId}-group-${groupIndex}`} className="ibo-cmap-group-heading" role="presentation">{group.label}</div>
+          {items}
+        </div> : <Fragment key={groupIndex}>{items}</Fragment>
+      })}
     </div>, document.body)}
   </>
 }

@@ -1,4 +1,5 @@
 import type { ParsedCube, ParsedStructure } from './lib/importers';
+import type { MoleculeAppearance } from './lib/molecule-appearance';
 
 export interface Orbital {
   id: string;
@@ -36,15 +37,13 @@ export interface Scene {
   orbital?: Orbital;
 }
 
-export interface DisplaySettings {
+export interface DisplaySettings extends MoleculeAppearance {
   isovalue: number;
   opacity: number;
   surface: boolean;
-  hydrogens: boolean;
-  labels: boolean;
-  style: 'ball-stick' | 'stick' | 'space-fill';
   spinning: boolean;
   material: 'shiny' | 'soft' | 'extra';
   positiveColor: string;
   negativeColor: string;
+  orbitalGradient?: { positive: readonly string[]; negative: readonly string[]; extent?: number };
 }

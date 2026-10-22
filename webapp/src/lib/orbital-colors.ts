@@ -1,5 +1,6 @@
-import { colorscaleGradient, isAthenaColormap } from './palettes/athena-colormaps';
-import { plotPaletteOptions, spectrumColors, type PlotPalette } from './palettes/athena-plot-colors';
+import { colorscaleGradient, isAthenaColormap, sampleColormap } from './palettes/athena-colormaps';
+import { normalizePlotColorRange, plotPaletteOptions, spectrumColors, type PlotPalette } from './palettes/athena-plot-colors';
+import type { DisplaySettings } from '../types';
 
 export type OrbitalPalette = 'iboview' | PlotPalette | 'custom';
 export interface OrbitalColors {
@@ -9,15 +10,29 @@ export interface OrbitalColors {
   vmax: number;
   positiveColor: string;
   negativeColor: string;
+  gradientExtent: number;
+  gradientStrength: number;
 }
 
 export const DEFAULT_ORBITAL_COLORS: OrbitalColors = {
   palette: 'iboview', reversed: false, vmin: 0, vmax: 1,
   positiveColor: '#6353e6', negativeColor: '#24c8c4',
+  gradientExtent: 0.2, gradientStrength: 1,
 };
 
-export function orbitalPhaseColors(settings: OrbitalColors): { positiveColor: string; negativeColor: string } {
+export function orbitalPhaseColors(settings: OrbitalColors): Pick<DisplaySettings, 'positiveColor' | 'negativeColor' | 'orbitalGradient'> {
   if (settings.palette === 'custom') return { positiveColor: settings.positiveColor, negativeColor: settings.negativeColor };
+  if (isAthenaColormap(settings.palette)) {
+    const palette = settings.palette;
+    const { vmin, vmax } = normalizePlotColorRange(settings);
+    const strength = Number.isFinite(settings.gradientStrength) ? Math.max(0, Math.min(2, settings.gradientStrength)) : 1;
+    const extent = Number.isFinite(settings.gradientExtent) ? Math.max(0, Math.min(1, settings.gradientExtent)) : 0.2;
+    const offset = Math.min(0.08, (vmax - vmin) * 0.25) * strength;
+    const sample = (position: number) => sampleColormap(palette, settings.reversed ? 1 - position : position);
+    const positive = Array.from({ length: 17 }, (_, i) => sample(vmin + offset * i / 16));
+    const negative = Array.from({ length: 17 }, (_, i) => sample(vmax - offset * i / 16));
+    return { positiveColor: positive[0], negativeColor: negative[0], orbitalGradient: { positive, negative, extent } };
+  }
   const colors = settings.palette === 'iboview'
     ? settings.reversed ? [DEFAULT_ORBITAL_COLORS.negativeColor, DEFAULT_ORBITAL_COLORS.positiveColor]
       : [DEFAULT_ORBITAL_COLORS.positiveColor, DEFAULT_ORBITAL_COLORS.negativeColor]
@@ -27,18 +42,18 @@ export function orbitalPhaseColors(settings: OrbitalColors): { positiveColor: st
 
 const pairGradient = (first: string, last: string) => colorscaleGradient([[0, first], [0.5, first], [0.5, last], [1, last]]);
 
-export function orbitalPaletteOptions(settings: OrbitalColors): { value: OrbitalPalette; label: string; background: string }[] {
+export function orbitalPaletteOptions(settings: OrbitalColors): { value: OrbitalPalette; label: string; background: string; group: string }[] {
   const native = orbitalPhaseColors({ ...settings, palette: 'iboview' });
-  const options: { value: OrbitalPalette; label: string; background: string }[] = [
-    { value: 'iboview', label: 'IboView · purple–teal', background: pairGradient(native.positiveColor, native.negativeColor) },
+  const options: { value: OrbitalPalette; label: string; background: string; group: string }[] = [
+    { value: 'iboview', label: 'IboView · purple–teal', group: 'Two-color', background: pairGradient(native.positiveColor, native.negativeColor) },
     ...plotPaletteOptions(settings.reversed).map(option => {
-      if (option.value !== 'classic' && option.value !== 'colorblind') return option;
+      if (option.value !== 'classic' && option.value !== 'colorblind') return { ...option, group: 'Gradient' };
       const phases = orbitalPhaseColors({ ...settings, palette: option.value });
-      return { ...option, background: pairGradient(phases.positiveColor, phases.negativeColor) };
+      return { ...option, group: 'Two-color', background: pairGradient(phases.positiveColor, phases.negativeColor) };
     }),
   ];
   if (settings.palette === 'custom') options.unshift({ value: 'custom', label: 'Custom phase colors',
-    background: pairGradient(settings.positiveColor, settings.negativeColor) });
+    group: 'Two-color', background: pairGradient(settings.positiveColor, settings.negativeColor) });
   return options;
 }
 

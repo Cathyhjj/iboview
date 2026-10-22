@@ -3,6 +3,9 @@
  * Element data: IvDataOptions.cpp and Common/CxAtomData.cpp.
  */
 import type { Atom, ParsedCube } from '../lib/importers';
+import { nativeElementHex } from '../lib/element-colors';
+import { DEFAULT_MOLECULE_APPEARANCE, moleculeAtomColor, type MoleculeAppearance } from '../lib/molecule-appearance';
+import { buildOrbitalTailCoordinates, orbitalTailWeight } from './orbital-tail';
 
 export interface MeshData {
   positions: Float32Array;
@@ -13,6 +16,8 @@ export interface MeshData {
 
 export interface OrbitalMeshData extends MeshData {
   positiveVertexCount: number;
+  tailWeights?: Float32Array;
+  tailCoordinates?: Float32Array;
 }
 
 type Vec3 = [number, number, number];
@@ -54,7 +59,6 @@ const VDW_RADII = [0.0,   2.2677,   2.6456,   3.4393,   2.8913,
    -1.0000,  -1.0000,   3.2000,   3.2000
 ];
 const DRAW_RADII = [0, 0.87,1.60,2.52,2.03,1.58,1.43,1.32,1.29,1.26,1.74,2.91,2.69,2.35,2.11,2.08,2.04,1.97,1.95,3.69,3.33,2.86,2.67,2.65,2.54,2.61,2.52,2.35,2.20,2.46,2.25,2.38,2.26,2.29,2.25,2.25,2.17,4.27,3.88,3.21,2.96,2.78,2.80,2.50,2.79,2.52,2.53,2.62,2.65,2.76,2.64,2.66,2.62,2.61,2.39,4.86,4.30,3.67,3.48,3.44,3.43,3.40,3.36,3.35,3.28,3.27,3.23,3.20,3.16,3.14,3.09,3.16,3.04,2.86,2.88,2.59,2.59,2.59,2.58,2.38,2.53,2.87,2.76,2.86,2.83,2.92,2.68,5.44,4.75,3.75,3.25,3.23,3.18,3.15,3.13,3.14,3.40,3.33,3.31,3.26,3.24,3.19,3.17,3.21];
-const ELEMENT_COLORS = [0x404040, 0xffffff,0xffc0cb,0xb22121,0xff1493,0x00ff00,0x999999,0x87cee6,0xff0000,0xdaa520,0xff1493,0x0000ff,0x228b22,0x696969,0xdaa520,0xffaa00,0xffff00,0x00ff00,0xff1493,0xff1493,0x696969,0xff1493,0x696969,0xff1493,0x696969,0x696969,0xffaa00,0xff1493,0x802828,0x802828,0x802828,0xff1493,0xff1493,0xff1493,0xff1493,0x802828,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0x696969,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xa020f0,0xff1493,0xff1493,0xffaa00,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xdaa520,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493,0xff1493];
 
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -130,14 +134,15 @@ function addSphere(mesh: MeshBuilder, center: Vec3, radius: number, rgba: Color)
   for (const triangle of SPHERE.triangles) mesh.indices.push(offset + triangle[0], offset + triangle[1], offset + triangle[2]);
 }
 
-function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: number, rgba: Color, tapered: boolean): void {
+function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: number, atomRadius: number, rgba: Color, tapered: boolean, radius: number): void {
   const delta: Vec3 = [end[0] - start[0], end[1] - start[1], end[2] - start[2]];
   const distance = Math.hypot(...delta);
-  const offset = tapered ? 0.12 * drawRadius * BOHR : 0;
+  const hiddenOffset = 0.95 * Math.sqrt(Math.max(0, atomRadius * atomRadius - radius * radius));
+  const offset = tapered ? Math.min(0.12 * drawRadius * BOHR, hiddenOffset) : 0;
   const height = distance / 2 - offset;
   if (height <= 1e-8) return;
   const w = unit(delta), u = unit(cross(Math.abs(w[2]) < 0.9 ? [0, 0, 1] : [0, 1, 0], w)), v = cross(w, u);
-  const radius = 0.28 * BOHR, topRadius = radius * (tapered ? 0.72 : 1);
+  const topRadius = radius * (tapered ? 0.72 : 1);
   const slant = Math.hypot(height, topRadius - radius);
   const radialNormal = height / slant, axialNormal = (radius - topRadius) / slant;
   const base = mesh.positions.length / 3;
@@ -154,29 +159,52 @@ function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: numb
     const next = (index + 1) % 16;
     mesh.indices.push(base + index, base + next, base + index + 16, base + index + 16, base + next, base + next + 16);
   }
+  if (radius > atomRadius + 1e-10) {
+    const normal: Vec3 = [-w[0], -w[1], -w[2]];
+    const center = mesh.vertex(start, normal, rgba);
+    for (let index = 0; index < 16; index += 1) {
+      const source = (base + index) * 3;
+      mesh.vertex([mesh.positions[source], mesh.positions[source + 1], mesh.positions[source + 2]], normal, rgba);
+    }
+    for (let index = 0; index < 16; index += 1) {
+      mesh.indices.push(center, center + 1 + (index + 1) % 16, center + 1 + index);
+    }
+  }
 }
 
 /** Native IboView element colors, subdivision spheres, and geometric bond criterion. */
-export function buildMolecule(atoms: Atom[], options: { hydrogens: boolean; style: 'ball-stick' | 'stick' | 'space-fill' }): MeshData {
+export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, 'hydrogens' | 'style'> & Partial<MoleculeAppearance>): MeshData {
   const mesh = new MeshBuilder();
+  const positiveScale = (value: number | undefined) => Number.isFinite(value) && value! > 0 ? value! : 1;
+  const atomScale = positiveScale(options.atomScale), hydrogenScale = positiveScale(options.hydrogenScale);
+  const bondScale = positiveScale(options.bondScale);
+  const bondRadius = 0.28 * BOHR * bondScale * (options.style === 'wireframe' ? 0.28 : 1);
+  const uniformBondColor = options.bondColorMode === 'uniform'
+    ? color(Number.parseInt((/^#[\da-f]{6}$/i.test(options.bondColor ?? '') ? options.bondColor! : DEFAULT_MOLECULE_APPEARANCE.bondColor).slice(1), 16)) : undefined;
   const visible = atoms.filter((atom) => options.hydrogens || atom.element !== 'H').map((atom) => {
     const number = ELEMENTS.indexOf(atom.element) + 1;
     const position: Vec3 = [atom.x, atom.y, atom.z];
     if (number < 1 || position.some((value) => !Number.isFinite(value))) throw new Error('Cannot build molecular geometry from invalid atoms.');
-    return { position, drawRadius: DRAW_RADII[number] ?? 2, covalent: COVALENT_RADII[number] ?? 3.2, vdw: VDW_RADII[number] > 0 ? VDW_RADII[number] : 3.2, rgba: color(ELEMENT_COLORS[number] ?? 0xff1493) };
+    const drawRadius = DRAW_RADII[number] ?? 2;
+    const vdw = VDW_RADII[number] > 0 ? VDW_RADII[number] : 3.2;
+    const baseRadius = options.style === 'space-fill' ? vdw * BOHR
+      : options.style === 'stick' || options.style === 'wireframe' ? bondRadius : 0.4 * drawRadius * BOHR;
+    return { position, drawRadius, covalent: COVALENT_RADII[number] ?? 3.2,
+      radius: baseRadius * atomScale * (atom.element === 'H' ? hydrogenScale : 1),
+      rgba: color(moleculeAtomColor(atom.element, nativeElementHex(atom.element), options)) };
   });
   for (const atom of visible) {
-    const radius = options.style === 'space-fill' ? atom.vdw * BOHR : options.style === 'stick' ? 0.28 * BOHR : 0.4 * atom.drawRadius * BOHR;
-    addSphere(mesh, atom.position, radius, atom.rgba);
+    addSphere(mesh, atom.position, atom.radius, atom.rgba);
   }
-  if (options.style !== 'space-fill') {
+  if (options.bonds !== false && options.style !== 'space-fill' && options.style !== 'spheres') {
+    const tapered = options.style !== 'wireframe' && (options.bondStyle ? options.bondStyle === 'tapered' : options.style === 'ball-stick');
     for (let i = 0; i < visible.length; i += 1) {
       for (let j = i + 1; j < visible.length; j += 1) {
         const a = visible[i], b = visible[j];
         const distance = Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2]);
         if (distance <= 1e-8 || distance > 1.3 * (a.covalent + b.covalent) * BOHR) continue;
-        addHalfBond(mesh, a.position, b.position, a.drawRadius, a.rgba, options.style === 'ball-stick');
-        addHalfBond(mesh, b.position, a.position, b.drawRadius, b.rgba, options.style === 'ball-stick');
+        addHalfBond(mesh, a.position, b.position, a.drawRadius, a.radius, uniformBondColor ?? a.rgba, tapered, bondRadius);
+        addHalfBond(mesh, b.position, a.position, b.drawRadius, b.radius, uniformBondColor ?? b.rgba, tapered, bondRadius);
       }
     }
   }
@@ -299,16 +327,39 @@ export function buildOrbital(parsed: ParsedCube, isovalue: number): OrbitalMeshD
   if (isovalue >= parsed.range[0] && isovalue <= parsed.range[1]) traceSurface(mesh, grid, isovalue, color(0x6353e6));
   const positiveVertexCount = mesh.positions.length / 3;
   if (-isovalue >= parsed.range[0] && -isovalue <= parsed.range[1]) traceSurface(mesh, grid, -isovalue, color(0x24c8c4));
-  return { ...mesh.finish(), positiveVertexCount };
+  const result: OrbitalMeshData = { ...mesh.finish(), positiveVertexCount };
+  result.tailCoordinates = buildOrbitalTailCoordinates(result.positions, result.indices, positiveVertexCount, parsed.atoms);
+  result.tailWeights = result.tailCoordinates.map((coordinate) => orbitalTailWeight(coordinate));
+  return result;
 }
 
 /** Positive vertices precede negative vertices, even when either phase is absent. */
-export function recolorOrbital(mesh: OrbitalMeshData, positiveColor: string, negativeColor: string): void {
-  const phases = [positiveColor, negativeColor].map((hex) => {
+export function recolorOrbital(
+  mesh: OrbitalMeshData, positiveColor: string, negativeColor: string,
+  gradient?: { positive: readonly string[]; negative: readonly string[]; extent?: number },
+): void {
+  const parse = (hex: string): Color => {
     if (!/^#[\da-f]{6}$/i.test(hex)) throw new Error('Orbital colors must use six-digit hexadecimal values.');
     return color(Number.parseInt(hex.slice(1), 16));
+  };
+  const phases = [positiveColor, negativeColor].map(parse);
+  const ramps = [gradient?.positive, gradient?.negative].map((samples, phase) => {
+    const ramp = samples?.map(parse) ?? [];
+    ramp[0] = phases[phase];
+    return ramp;
   });
+  const requestedExtent = gradient?.extent ?? 0.2;
+  const extent = Number.isFinite(requestedExtent) ? Math.max(0, Math.min(1, requestedExtent)) : 0.2;
   for (let vertex = 0; vertex < mesh.colors.length / 4; vertex += 1) {
-    mesh.colors.set(phases[vertex < mesh.positiveVertexCount ? 0 : 1], vertex * 4);
+    const ramp = ramps[vertex < mesh.positiveVertexCount ? 0 : 1];
+    const weight = mesh.tailCoordinates
+      ? orbitalTailWeight(mesh.tailCoordinates[vertex], extent)
+      : extent === 0.2 ? mesh.tailWeights?.[vertex] ?? 0 : 0;
+    const position = (Number.isFinite(weight) ? Math.max(0, Math.min(1, weight)) : 0) * (ramp.length - 1);
+    const index = Math.floor(position), fraction = position - index;
+    const start = ramp[index], end = ramp[Math.min(index + 1, ramp.length - 1)];
+    for (let channel = 0; channel < 3; channel += 1) {
+      mesh.colors[vertex * 4 + channel] = start[channel] * (1 - fraction) + end[channel] * fraction;
+    }
   }
 }
