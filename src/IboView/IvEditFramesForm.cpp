@@ -307,15 +307,14 @@ static void MoveSelectedUp(FFrameIndexList &iAll, FFrameIndexList const &iSelect
    // become:  0 1 2 4 5 3. But Frames 0 and 1 cannot be moved up, since they already
    // are at the top positions.
    int i = 0;
-//    while (iSelected[i] == iAll[i] && i < int(iSelected.size()))
-   while (iSelected[i] == i && i < int(iSelected.size()))
+   while (i < int(iSelected.size()) && iSelected[i] == i)
       ++ i;
    for (; i < int(iSelected.size()); ++ i)
    {
       int
          iOld = iSelected[i],
          iNew = iOld - 1;
-      assert(iNew > 0);
+      assert(iNew >= 0);
       std::swap(iAll[iOld], iAll[iNew]);
    }
 }

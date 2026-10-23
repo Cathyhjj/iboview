@@ -30,3 +30,6 @@ jobs:
     - name: Compile
       run: python3 ./.github/workflows/build.py --only-compile --os "${{ matrix.os }}"
 
+    - name: Native regressions
+      run: python3 tests/run_native_regressions.py --require-qt
+

@@ -69,6 +69,31 @@ describe('PNG export resolution', () => {
     expect([canvas.width, canvas.height]).toEqual([width, height]);
   });
 
+  it.each<[string, FixtureOptions, [number, number]]>([
+    ['wide high-DPI viewport', { width: 2560, height: 1440, pixelRatio: 2 }, [4096, 2304]],
+    ['tall high-DPI viewport', { width: 1440, height: 2560, pixelRatio: 2 }, [2304, 4096]],
+    ['texture size limit', { width: 2560, height: 1440, pixelRatio: 2, textureLimit: 2048 }, [2048, 1152]],
+    ['renderbuffer size limit', { width: 2560, height: 1440, pixelRatio: 2, renderbufferLimit: 2048 }, [2048, 1152]],
+  ])('preserves molecular proportions when reducing a %s', (_name, options, dimensions) => {
+    const { renderer, canvas } = exportFixture(options);
+    expect([canvas.width, canvas.height]).toEqual(dimensions);
+    const origin = renderer.project({ x: 1, y: -2, z: 3 });
+    const alongX = renderer.project({ x: 2, y: -2, z: 3 });
+    const alongY = renderer.project({ x: 1, y: -1, z: 3 });
+    expect(alongX[0] - origin[0]).toBeCloseTo(origin[1] - alongY[1], 8);
+  });
+
+  it('preserves the reduced viewport aspect and projected annotations through an enlarged export', () => {
+    const { renderer, canvas } = exportFixture({ width: 2560, height: 1080, pixelRatio: 2 });
+    const projected = renderer.project({ x: 2, y: 3, z: -1 });
+    outputFixture();
+    const output = renderer.exportCanvas({ scale: 2, transparentBackground: true });
+    expect([output.width, output.height]).toEqual([8192, 3456]);
+    expect(output.width / output.height).toBe(canvas.clientWidth / canvas.clientHeight);
+    expect([canvas.width, canvas.height]).toEqual([4096, 1728]);
+    expect(renderer.project({ x: 2, y: 3, z: -1 })).toEqual(projected);
+  });
+
   it.each<PNGExportScale>([1, 2, 4])('multiplies rounded base dimensions exactly by %s without changing the camera framing', scale => {
     const { renderer, canvas } = exportFixture();
     const camera = renderer.getCameraState();

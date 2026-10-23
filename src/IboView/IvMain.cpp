@@ -40,6 +40,9 @@
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QFile>
+#include <QSaveFile>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QTextStream>
 #include <QStringList>
 #include <QRegularExpression>
@@ -664,6 +667,17 @@ void IApplication::reset_atom_modes()
 
 
 
+static std::string ScriptStringLiteral(QString const &Text)
+{
+   QJsonArray Values;
+   Values.append(Text);
+   QByteArray Encoded = QJsonDocument(Values).toJson(QJsonDocument::Compact);
+   Encoded = Encoded.mid(1, Encoded.size() - 2);
+   Encoded.replace("\xe2\x80\xa8", "\\u2028");
+   Encoded.replace("\xe2\x80\xa9", "\\u2029");
+   return std::string(Encoded.constData(), size_t(Encoded.size()));
+}
+
 QString FMainWindow::MakeStateScript()
 {
    if (!document->GetCurrentFrameData())
@@ -672,13 +686,13 @@ QString FMainWindow::MakeStateScript()
       out;
 //    for (int iFrame = 0; iFrame < document->GetNumFrames(); ++ iFrame)
    if (document->GetNumFrames() == 1)
-      out << fmt::format("app.load_file(\"{}\");\n", q2s(document->GetCurrentInputFileName()));
+      out << fmt::format("app.load_file({});\n", ScriptStringLiteral(document->GetCurrentInputFileName()));
    else {
       out << "app.load_files([";
       for (int iFrame = 0; iFrame < document->GetNumFrames(); ++ iFrame) {
          if (iFrame != 0)
             out << ", ";
-         out << fmt::format("\"{}\"", q2s(document->GetFrame(iFrame)->GetFullInputFileName()));
+         out << ScriptStringLiteral(document->GetFrame(iFrame)->GetFullInputFileName());
       }
       out << "]);\n";
    }
@@ -711,7 +725,7 @@ QString FMainWindow::MakeStateScript()
 
 //    char const *pCropEnabledStr = (view3d->HasFlag(VIEWFLAG_CropImages)? "true" : "false");
    if (document->GetNumFrames() == 1) {
-      out << fmt::format("\n// view.save_png(\"{}.png\");\n", q2s(ReplaceExt(document->GetCurrentInputFileName(),".png"))); // % pCropEnabledStr;
+      out << fmt::format("\n// view.save_png({});\n", ScriptStringLiteral(ReplaceExt(document->GetCurrentInputFileName(),".png") + ".png")); // % pCropEnabledStr;
    } else {
       out << "\n"
              "for (var iFrame = 0; iFrame < doc.num_frames(); ++iFrame) {\n"
@@ -730,10 +744,13 @@ void FMainWindow::WriteStateScript(QString FileName)
    if (FileName != ":/!clipboard!") {
       if (FileName.isEmpty())
          FileName = ReplaceExt(document->GetCurrentInputFileName(), ".js");
-      QFile
+      QSaveFile
          Out(FileName);
-      Out.open(QIODevice::WriteOnly | QIODevice::Text);
-      Out.write(MakeStateScript().toUtf8());
+      QByteArray Script = MakeStateScript().toUtf8();
+      if (!Out.open(QIODevice::WriteOnly) || Out.write(Script) != Script.size() || !Out.commit()) {
+         IvNotify(NOTIFY_Error, IvFmt("Failed to save state script '%1': %2", FileName, Out.errorString()));
+         return;
+      }
       IvEmit("* wrote state script to '%1'", FileName);
    } else {
       QApplication::clipboard()->setText(MakeStateScript());

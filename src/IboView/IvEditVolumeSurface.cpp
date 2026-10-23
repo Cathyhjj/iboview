@@ -226,6 +226,7 @@ FIsoSliceDecl FIsoSliceDecl::fromString(QString s, bool *ok)
 {
    FIsoSliceDecl
       r;
+   bool Converted = false;
    IvEmit("read: '%1'", s);
    QRegularExpression
 //       re("^\\((@[-+]?[0-9]*.?[0-9]+([eE][-+]?[0-9]+)?@),([0123456789abcdef]{0,8})\\)$");
@@ -239,18 +240,14 @@ FIsoSliceDecl FIsoSliceDecl::fromString(QString s, bool *ok)
       QStringList
          L = Match.capturedTexts();
       if (L.size() == 3) {
-         if (ok)
-            *ok = true;
-
-         r.fIsoValue = L[1].toDouble(ok);
-         if (ok && *ok) {
-            r.dwColor = L[2].toUInt(ok, 16);
+         r.fIsoValue = L[1].toDouble(&Converted);
+         if (Converted) {
+            r.dwColor = L[2].toUInt(&Converted, 16);
          }
       }
-   } else {
-      if (ok)
-         *ok = false;
    }
+   if (ok)
+      *ok = Converted;
    return r;
 }
 

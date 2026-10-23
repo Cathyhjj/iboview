@@ -395,8 +395,9 @@ export class NativeIboRenderer {
     const ratio = Math.min(2, window.devicePixelRatio || 1);
     const deviceLimit = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
     const limit = Math.min(4096, deviceLimit);
-    const width = Math.max(1, Math.min(limit, Math.round(this.canvas.clientWidth * ratio))) * scale;
-    const height = Math.max(1, Math.min(limit, Math.round(this.canvas.clientHeight * ratio))) * scale;
+    const fittedRatio = Math.min(ratio, limit / Math.max(1, this.canvas.clientWidth), limit / Math.max(1, this.canvas.clientHeight));
+    const width = Math.max(1, Math.round(this.canvas.clientWidth * fittedRatio)) * scale;
+    const height = Math.max(1, Math.round(this.canvas.clientHeight * fittedRatio)) * scale;
     if (scale > 1) {
       const viewport = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array;
       if (width > deviceLimit || height > deviceLimit || width > viewport[0] || height > viewport[1]

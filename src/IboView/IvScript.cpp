@@ -358,14 +358,10 @@ public:
       if (nArgs < 2)
          return m_pEngine->newErrorObject(QJSValue::RangeError, "FreeLine.ctor(): expected at least two arguments (from,to)");
       FFreeLine *pobj(new FFreeLine(m_pEngine));
-      int iArg = 0;
-      if (nArgs == 1) {
-         pobj->setp(args[iArg].toMap());
-      } else if (nArgs >= 3) {
-         if (nArgs > iArg) { pobj->SetFrom(FromVariant(args[iArg])); iArg += 1; }
-         if (nArgs > iArg) { pobj->SetTo(FromVariant(args[iArg])); iArg += 1; }
-         if (nArgs > iArg) { pobj->setp(args[iArg].toMap()); iArg += 1; }
-      }
+      pobj->SetFrom(FromVariant(args[0]));
+      pobj->SetTo(FromVariant(args[1]));
+      if (nArgs >= 3)
+         pobj->setp(args[2].toMap());
       // let the engine manage the new object's lifetime.
       QJSEngine::setObjectOwnership(pobj, QJSEngine::JavaScriptOwnership);
       return m_pEngine->newQObject(pobj);
