@@ -54,7 +54,7 @@ describe('native project file pickers', () => {
     expect(handle.getFile).toHaveBeenCalledOnce();
     expect(picker).toHaveBeenCalledWith({
       multiple: false,
-      types: [{ description: 'IboView projects and molecular data', accept: { 'application/json': ['.json'], 'text/plain': ['.xyz', '.cube', '.cub'] } }],
+      types: [{ description: 'IboView projects and molecular data', accept: { 'application/json': ['.json'], 'text/plain': ['.xyz', '.cube', '.cub', '.cif', '.vasp', '.poscar'] } }],
     });
   });
 

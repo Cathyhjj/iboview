@@ -12,7 +12,7 @@ export interface SavedProjectSummary {
   updatedAt: number;
   byteLength: number;
   formula: string;
-  kind: 'demo' | 'cube' | 'xyz';
+  kind: 'demo' | 'cube' | 'xyz' | 'crystal';
   orbitalCount: number;
 }
 
@@ -46,7 +46,7 @@ function validId(id: unknown): asserts id is string {
 function validateMetadata(input: Pick<SaveProjectInput, 'name' | 'formula' | 'kind' | 'orbitalCount'>): void {
   if (typeof input.name !== 'string') throw new Error('Saved project name must be text.');
   if (typeof input.formula !== 'string' || input.formula.length > 2048) throw new Error('Saved project formula must be text up to 2048 characters.');
-  if (!['demo', 'cube', 'xyz'].includes(input.kind)) throw new Error('Saved project type is invalid.');
+  if (!['demo', 'cube', 'xyz', 'crystal'].includes(input.kind)) throw new Error('Saved project type is invalid.');
   if (!Number.isSafeInteger(input.orbitalCount) || input.orbitalCount < 0) throw new Error('Saved project orbital count must be a nonnegative integer.');
 }
 

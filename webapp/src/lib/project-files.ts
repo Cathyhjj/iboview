@@ -56,7 +56,7 @@ export async function chooseOpenFile(): Promise<{ file: File; handle: ProjectFil
     multiple: false,
     types: [{
       description: 'IboView projects and molecular data',
-      accept: { 'application/json': ['.json'], 'text/plain': ['.xyz', '.cube', '.cub'] },
+      accept: { 'application/json': ['.json'], 'text/plain': ['.xyz', '.cube', '.cub', '.cif', '.vasp', '.poscar'] },
     }],
   });
   if (!handle) throw new DOMException('No file selected.', 'AbortError');

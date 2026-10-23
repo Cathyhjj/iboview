@@ -1,0 +1,55 @@
+.research-section{padding:12px 0;border-top:1px solid #e7deef;font-size:12px;flex-shrink:0}
+.research-section>summary{cursor:pointer;margin-bottom:8px;color:#8a7c96}
+.research-section .tool-button,.library-panel>.tool-button{width:100%;padding:8px;border:1px solid #ded2e9;border-radius:6px;background:#f7f2fc;color:#735196;font:inherit;font-size:11px;cursor:pointer}
+.research-section .tool-button:disabled{opacity:.45;cursor:default}
+.viewport-panel:has(.trajectory-controls) .viewport-stage{min-height:240px}
+.research-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}
+.research-row label{display:flex;align-items:center;gap:6px;font-size:12px}
+.research-row input:not([type=checkbox]),.research-row select{border:1px solid #d8cee2;border-radius:6px;padding:7px;background:transparent;color:inherit;min-width:0;max-width:260px;font:inherit}
+.research-row input[type=number]{width:83px}
+.research-row input[type=checkbox]{accent-color:#8660b3}
+.research-row button,.research-heading>button,.named-view button,.compare-pane header button,.research-dialog td button{border:1px solid #ded2e9;background:#f7f2fc;color:#735196;border-radius:6px;padding:7px 10px;font:inherit;font-size:12px;cursor:pointer}
+.research-row button:disabled{opacity:.45;cursor:default}
+.research-row>.tool-button{flex:1;width:auto;margin:0;font-size:10px}
+.research-note{font-size:11px;line-height:1.6;color:#8a7c96;margin:8px 0}
+.research-dialog{width:min(1300px,96vw);max-width:96vw;max-height:94dvh;overflow:auto;border:1px solid #ded4e7;border-radius:14px;padding:22px;background:#fff;color:#483852;box-shadow:0 24px 80px #1f0b3933}
+.research-dialog::backdrop{background:#21132c7a;backdrop-filter:blur(3px)}
+.research-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:18px}
+.research-heading h2{font-size:21px;letter-spacing:-.5px;margin:0 0 5px}.research-heading p{font-size:12px;color:#8d7a9e;margin:0}
+.research-heading>button{flex-shrink:0}
+.comparison-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-height:310px}
+.comparison-grid:has(>.compare-pane:only-child){grid-template-columns:1fr}
+.compare-pane{border:1px solid #e7deef;border-radius:10px;overflow:hidden;min-width:0}
+.compare-pane header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f9f6fc;font-size:12px;min-height:40px}
+.compare-pane header strong{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.compare-pane header button{border:0;background:transparent;padding:2px 7px;font-size:18px}
+.compare-canvas{position:relative;height:340px}.comparison-grid.four .compare-canvas{height:250px}
+.research-dialog .molecule-canvas{position:absolute;inset:0;width:100%;height:100%}
+.compare-status{position:absolute;left:15px;bottom:15px;font-size:12px;color:#936fae;background:#ffffffdd;border-radius:5px;padding:6px}
+.batch-settings{border-top:1px solid #e7deef;margin-top:18px;padding-top:16px}.batch-settings h3{font-size:14px;margin:0}
+.batch-canvas{position:fixed;left:-10000px;top:0;width:512px;height:384px;pointer-events:none}
+.batch-preview{margin-top:14px;font-size:12px}.batch-preview img{display:block;max-width:100%;max-height:600px;margin:12px auto;object-fit:contain;border:1px solid #e7deef;background:#f1eef5}
+.coordination-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.coordination-preview{height:410px;position:relative;border:1px solid #e7deef;border-radius:10px;overflow:hidden}
+.research-table-scroll{max-height:280px;overflow:auto;margin-top:12px}
+.research-dialog table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.research-dialog td,.research-dialog th{padding:8px 6px;border-bottom:1px solid #eee6f4;white-space:nowrap}
+.research-dialog th{font-weight:500;color:#9784a5}.research-dialog tr[aria-selected=true]{background:#f2e8fc}
+.research-dialog td button{padding:4px 7px}.research-dialog td i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.distance-plot{display:block;width:100%;margin:12px 0;color:#b4a1c3;font-size:10px}
+.named-views .research-row input{width:100%;font-size:10px;flex:1}.named-views .research-row button{font-size:10px}
+.named-view{display:flex;justify-content:space-between;align-items:center;margin:6px 0;gap:5px}.named-view button{font-size:11px;text-align:left}.named-view button:first-child{flex:1;overflow:hidden;text-overflow:ellipsis}
+.trajectory-controls{padding:10px 15px;border-top:1px solid #e9dff0;flex-shrink:0;max-height:255px;overflow:auto}
+.trajectory-controls .research-row{margin:0 0 5px;gap:5px}.trajectory-controls .research-row button,.trajectory-controls .research-row label,.trajectory-controls .research-row span,.trajectory-controls .research-row strong{font-size:10px}
+.trajectory-controls input[type=range]{width:100%;margin:8px 0;accent-color:#9870c0}.trajectory-controls p{font-size:10px;margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trajectory-controls small{font-size:9px;color:#9987a6}
+.trajectory-plot{height:65px;width:100%;color:#9570be;display:block}
+[data-theme=dark] .research-dialog{background:#211c27;color:#d2c4dc;border-color:#4c3c5c}
+[data-theme=dark] .research-row input,[data-theme=dark] .research-row select{border-color:#5a4568;color:#cfbadf}
+[data-theme=dark] .research-row option{background:#211c27}
+[data-theme=dark] .research-row button,[data-theme=dark] .named-view button,[data-theme=dark] .research-heading>button,[data-theme=dark] .research-dialog td button{background:#33283e;color:#c6a9de;border-color:#4c3c5c}
+[data-theme=dark] .compare-pane header{background:#2b2333}
+[data-theme=dark] .compare-pane,[data-theme=dark] .coordination-preview,[data-theme=dark] .batch-settings,[data-theme=dark] .trajectory-controls{border-color:#493752}
+[data-theme=dark] .research-dialog td,[data-theme=dark] .research-dialog th{border-color:#493752}
+[data-theme=dark] .research-dialog tr[aria-selected=true]{background:#3a2a49}
+[data-theme=dark] .compare-status{background:#211c27dd}
+@media(max-width:760px){.research-dialog{padding:14px}.comparison-grid,.coordination-layout{grid-template-columns:1fr}.compare-canvas,.comparison-grid.four .compare-canvas{height:280px}.coordination-preview{height:300px}.research-row label{font-size:11px}.research-heading h2{font-size:18px}.trajectory-controls{max-height:220px}}

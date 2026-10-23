@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
+import { parseCrystal } from '../src/lib/crystal';
 import type { DemoManifest, DisplaySettings, Orbital } from '../src/types';
 import { parseCube, parseXYZ, type ParsedStructure } from '../src/lib/importers';
 import { DEFAULT_MOLECULE_APPEARANCE } from '../src/lib/molecule-appearance';
@@ -58,6 +59,15 @@ function snapshot(kind: 'xyz' | 'cube' | 'demo' = 'demo'): ProjectSnapshot {
 function stored() { return JSON.parse(serializeProject(snapshot())); }
 
 describe('portable IboView projects', () => {
+  it('preserves the periodic lattice and rejects mismatched crystal coordinates', () => {
+    const original = snapshot('xyz');
+    const crystal = parseCrystal('Iron\n1\n3 0 0\n0 3 0\n0 0 3\nFe\n1\nDirect\n0 0 0\n', 'poscar');
+    original.scene = { ...original.scene, kind: 'crystal', crystal, structure: parseXYZ('1\nIron\nFe 0 0 0\n') };
+    expect(parseProject(serializeProject(original)).scene.crystal).toEqual(crystal);
+    const invalid = JSON.parse(serializeProject(original));
+    invalid.scene.xyz = '1\nIron\nFe 1 0 0\n';
+    expect(() => parseProject(JSON.stringify(invalid))).toThrow(/do not match/);
+  });
   it.each(['xyz', 'cube', 'demo'] as const)('round trips %s data, appearance, camera and theme without network access', kind => {
     const fetch = vi.fn(() => { throw new Error('No network allowed'); });
     vi.stubGlobal('fetch', fetch);

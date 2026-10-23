@@ -1,3 +1,5 @@
+import { parseCrystal } from './lib/crystal';
+import { normalizeWorkspace } from './lib/workspace-state';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Atom, Upload, Download, ChevronRight, RotateCcw, Play, Pause, Plus, Minus,
@@ -30,6 +32,13 @@ import { chooseOpenFile, chooseProjectFile, downloadProject, ensureProjectWriteP
   supportsOpenPicker, supportsSavePicker, writeProjectFile, type ProjectFileHandle } from './lib/project-files';
 import type { CameraState } from './lib/camera-state';
 import type { DemoManifest, DisplaySettings, Scene } from './types';
+import { ComparisonStudio, type ResearchView } from './components/ComparisonStudio';
+import { NamedViewsControl } from './components/NamedViewsControl';
+import { CoordinationTool } from './components/CoordinationTool';
+import { TrajectoryControls } from './components/TrajectoryControls';
+import { parseXYZTrajectory, TRAJECTORY_EXAMPLE } from './lib/trajectory';
+import { atomCenter, loadNamedViews, saveNamedViews, type NamedView } from './lib/research-views';
+import './components/research.css';
 import './components/demo-selector.css';
 import './components/project-controls.css';
 import './components/png-export.css';
@@ -69,12 +78,30 @@ export default function App() {
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
   const [manifest, setManifest] = useState<DemoManifest>();
   const [scene, setScene] = useState<Scene>();
+  const renderedScene = useMemo(() => scene?.trajectory ? { ...scene, structure: scene.trajectory.frames[scene.trajectoryFrame ?? 0] } : scene, [scene]);
+  const changeFrame=useCallback((index:number)=>{
+    setScene(previous=>previous?.trajectory ? {...previous,trajectoryFrame:Math.max(0,Math.min(previous.trajectory.frames.length-1,index))} : previous);
+    setRenderStatus('loading');
+  },[]);
+
   const [renderQuality, setRenderQuality] = useState(loadRenderQuality);
   const [settings, setSettings] = useState<DisplaySettings>(() => ({ ...DEFAULTS, ...readMoleculeAppearance(), ...loadDisplayPreferences() }));
   const surfaceKey = useMemo(() => scene ? cameraKeyForStructure(scene.structure.atoms) : undefined, [scene?.structure]);
   const hasVolume = !!scene?.volume;
   const [appearanceTab, setAppearanceTab] = useState<'molecule' | 'orbital'>('molecule');
   const [colors, setColors] = useState(() => loadOrbitalColors());
+  const [namedViews, setNamedViews] = useState<NamedView[]>([]);
+  const namedViewsKey = useRef('');
+  useEffect(() => {
+    if (surfaceKey && namedViewsKey.current !== surfaceKey) {
+      namedViewsKey.current=surfaceKey;setNamedViews(loadNamedViews(surfaceKey));
+    }
+  },[surfaceKey]);
+  function changeNamedViews(views:NamedView[]) {
+    setNamedViews(views);
+    if(surfaceKey)try{saveNamedViews(surfaceKey,views);}catch{setError('Views are available in this session; browser storage is full. Save a project to retain them.');}
+  }
+
   const [appearanceFallback] = useState(() => moleculeViewPreferences(settings, colors));
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -162,6 +189,9 @@ export default function App() {
     setBrowserProjectId(id);
     setProjectName(name);
     setManifest(project.manifest);
+    const viewKey=cameraKeyForStructure(project.scene.structure.atoms);
+    namedViewsKey.current=viewKey;
+    setNamedViews(project.namedViews ?? loadNamedViews(viewKey));
     setInitialCamera(project.camera);
     setColors(project.colors);
     setSettings(project.settings);
@@ -345,6 +375,32 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  async function loadCrystalExample() {
+    const cif = `data_NaCl
+_cell_length_a 5.6402
+_cell_length_b 5.6402
+_cell_length_c 5.6402
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_space_group_name_H-M_alt 'P 1'
+loop_
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Na 0 0 0
+Na 0 .5 .5
+Na .5 0 .5
+Na .5 .5 0
+Cl .5 0 0
+Cl 0 .5 0
+Cl 0 0 .5
+Cl .5 .5 .5
+`;
+    await importFile(new File([cif], 'NaCl.cif', { type: 'text/plain' }));
+  }
+
   async function importFile(file?: File, handle?: ProjectFileHandle, fromPicker = false) {
     if (!file || (fileOperation.current && !fromPicker)) return;
     fileOperation.current = true;
@@ -382,10 +438,14 @@ export default function App() {
         return;
       }
       if (file.size > 35 * 1024 * 1024) throw new Error('This preview supports molecular files up to 35 MB. Use a smaller Cube grid.');
-      if (!['cube', 'cub', 'xyz'].includes(extension ?? '')) throw new Error('Choose an IboView project (.iboview.json), Gaussian Cube (.cube, .cub) or XYZ (.xyz) file.');
+      const isCrystal = ['cif', 'vasp', 'poscar'].includes(extension ?? '') || /^(POSCAR|CONTCAR)$/i.test(file.name);
+      if (!isCrystal && !['cube', 'cub', 'xyz'].includes(extension ?? '')) throw new Error('Choose an IboView project, Cube, XYZ, CIF or POSCAR file.');
       const text = await file.text();
-      const volume = extension === 'xyz' ? undefined : parseCube(text);
-      const structure = volume ?? parseXYZ(text);
+      const crystal = isCrystal ? parseCrystal(text, extension === 'cif' ? 'cif' : 'poscar') : undefined;
+      const volume = !isCrystal && extension !== 'xyz' ? parseCube(text) : undefined;
+      const frames = extension === 'xyz' ? parseXYZTrajectory(text) : undefined;
+      const trajectory = frames && frames.frames.length > 1 ? frames : undefined;
+      const structure = crystal ? { atoms: crystal.atoms, xyz: `${crystal.atoms.length}\nCrystal unit cell; angstroms\n${crystal.atoms.map(a => `${a.element} ${a.x} ${a.y} ${a.z}`).join('\n')}\n` } : volume ?? frames?.frames[0] ?? parseXYZ(text);
       if (ticket !== request.current) return;
       projectHandle.current = undefined;
       embeddedDemo.current = undefined;
@@ -394,7 +454,7 @@ export default function App() {
       setManifest(undefined);
       setInitialCamera(undefined);
       setScene({ key: `local-${ticket}`, name: file.name.replace(/\.[^.]+$/, ''), fileName: file.name,
-        kind: volume ? 'cube' : 'xyz', formula: formulaFor(structure.atoms), structure, volume });
+        kind: crystal ? 'crystal' : volume ? 'cube' : 'xyz', formula: formulaFor(structure.atoms), structure, volume, crystal, trajectory, trajectoryFrame: 0 });
       const peak = volume ? Math.max(Math.abs(volume.range[0]), Math.abs(volume.range[1])) : 0;
       const range = importedRange(peak);
       const key = cameraKeyForStructure(structure.atoms);
@@ -432,7 +492,7 @@ export default function App() {
   function projectSnapshot(): ProjectSnapshot {
     const camera = viewer.current?.getCameraState();
     if (!scene || !camera) throw new Error('The view is not ready to save. Wait for the molecule to finish rendering.');
-    return { scene, settings: viewerSettings, colors, camera, theme, manifest: scene.kind === 'demo' ? manifest : undefined };
+    return { scene, settings: viewerSettings, colors, camera, theme, namedViews, manifest: scene.kind === 'demo' ? manifest : undefined };
   }
 
   async function projectContents(snapshot: ProjectSnapshot) {
@@ -657,6 +717,20 @@ export default function App() {
   const selectedDemo = pendingDemo || (isDemo ? manifest?.id : '') || '';
   const demoDetail = DEMOS.find(demo => demo.id === selectedDemo)?.detail;
 
+  function captureResearchView():ResearchView|undefined {
+    const camera=viewer.current?.getCameraState();
+    if(!renderedScene||!camera||!ready)return;
+    return {id:'current',title:`${renderedScene.name}${renderedScene.orbital?` · ${renderedScene.orbital.label}`:''}${scene?.trajectory?` · Frame ${(scene.trajectoryFrame??0)+1}`:''}`,
+      scene:renderedScene,settings:JSON.parse(JSON.stringify({...viewerSettings,spinning:false})),workspace:normalizeWorkspace(null),camera,theme};
+  }
+  async function researchOrbital(id:string):Promise<Scene> {
+    if(!manifest||!scene)throw new Error('Open an orbital example first.');
+    const orbital=manifest.orbitals.find(o=>o.id===id);
+    if(!orbital)throw new Error('Orbital is unavailable.');
+    const volume=embeddedDemo.current?.volumes[id] ?? (await loadDemo.current(manifest.id,id)).volume;
+    return {...scene,volume,orbital};
+  }
+
   return <div className="app-shell" style={{ '--positive': phaseColors.positiveColor, '--negative': phaseColors.negativeColor } as CSSProperties}>
     <header className="app-header">
       <a className="brand" href="./" aria-label="IboView home"><span className="brand-mark"><Atom size={25} strokeWidth={1.6} /></span>
@@ -697,7 +771,7 @@ export default function App() {
                 onChange={event => setCropTransparent(event.target.checked)} />Crop transparent margins</label>
           </div>
           <button className="button primary" disabled={saving || busy || configBusy} onClick={() => void openFile()}><Upload size={16} />Open file</button>
-          <input ref={input} className="visually-hidden" type="file" accept=".xyz,.cube,.cub,.json" aria-label="Open molecular file or project" onChange={event => void importFile(event.target.files?.[0])} />
+          <input ref={input} className="visually-hidden" type="file" accept=".xyz,.cube,.cub,.json,.cif,.poscar,.vasp" aria-label="Open molecular file or project" onChange={event => void importFile(event.target.files?.[0])} />
         </div>
       </section>
 
@@ -734,8 +808,15 @@ export default function App() {
               <span className="orbital-copy"><strong>{orbital.label}</strong><small>{orbitalKind(orbital)}<span>{orbital.occupation} electrons</span></small></span>
               {pendingId === orbital.id ? <LoaderCircle size={15} className="loading-spin" /> : scene?.orbital?.id === orbital.id ? <Eye size={15} /> : null}
             </button>)}
-            {scene && !isDemo && <div className="imported-item"><FileText size={20} /><div><strong>{hasVolume ? 'Scalar field' : 'Molecular geometry'}</strong><p>{hasVolume ? 'One dataset · Cube' : 'XYZ · coordinates in Å'}</p></div></div>}
+            {scene && !isDemo && <div className="imported-item"><FileText size={20} /><div><strong>{hasVolume ? 'Scalar field' : 'Molecular geometry'}</strong><p>{hasVolume ? 'One dataset · Cube' : scene.crystal ? 'Crystal · coordinates in Å' : 'XYZ · coordinates in Å'}</p></div></div>}
           </div>
+          <details className="research-section" open><summary>Research tools</summary>
+            <ComparisonStudio capture={captureResearchView} namedViews={namedViews} renderQuality={renderQuality} orbitalOptions={manifest?.orbitals??[]} loadOrbital={researchOrbital}/>
+            <CoordinationTool scene={renderedScene} settings={viewerSettings} selectedAtoms={[]} theme={theme} renderQuality={renderQuality}/>
+          </details>
+          <details className="research-section"><summary>Named views <span>{namedViews.length}</span></summary><NamedViewsControl views={namedViews} onChange={changeNamedViews} getCamera={()=>viewer.current?.getCameraState()} getCenter={()=>atomCenter(renderedScene?.structure.atoms??[])} onRestore={camera=>{update('spinning',false);viewer.current?.restoreCameraState(camera);}}/></details>
+          <button className="tool-button" disabled={busy||saving} onClick={() => void loadCrystalExample()}>NaCl crystal</button>
+          <button className="tool-button" disabled={busy||saving} onClick={()=>void importFile(new File([TRAJECTORY_EXAMPLE],'water-bending.xyz',{type:'text/plain'}))}>Water bending trajectory</button>
           <div className="library-bottom">
             <div className="hint-card"><Atom size={18} /><p>{isDemo || !scene ? 'One orbital, two phases. The colors show the sign of the wavefunction, not charge.' : hasVolume ? 'Colors show positive and negative field values. Field identity and units come from your calculation.' : 'XYZ contains geometry only. Open a Cube file to display a volumetric field.'}</p></div>
             <button className="demo-link" disabled={saving || configBusy} onClick={() => void showDemo(manifest?.id)}><RotateCcw size={14} />Reload demo<ArrowUpRight size={15} /></button>
@@ -746,8 +827,8 @@ export default function App() {
           <div className="viewport-header"><div className="viewport-title"><span className="tiny-dot" /><strong>IboView renderer</strong></div>
             <div className="viewport-render-options"><span className="viewport-mode">{REPRESENTATIONS.find(item => item.id === settings.style)?.name}<span className="subtle-separator">/</span>Orthographic</span><RenderQualityControl value={renderQuality} disabled={busy || saving} onChange={value => { setRenderQuality(value); saveRenderQuality(value); }} /></div></div>
           <div className="viewport-stage">
-            <MoleculeViewer ref={viewer} renderQuality={renderQuality} scene={scene} settings={viewerSettings} theme={theme} initialCamera={initialCamera} onStatus={onRenderStatus} />
-            <div className="scene-label"><span>{isDemo ? `${scene.name.toUpperCase()} / IBO` : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
+            <MoleculeViewer ref={viewer} renderQuality={renderQuality} scene={renderedScene} settings={viewerSettings} theme={theme} initialCamera={initialCamera} cameraStorageKey={scene?.trajectory?surfaceKey:undefined} onStatus={onRenderStatus} />
+            <div className="scene-label"><span>{isDemo ? `${scene.name.toUpperCase()} / IBO` : scene?.kind === 'cube' ? 'LOCAL / CUBE' : scene?.crystal ? 'LOCAL / CRYSTAL' : scene ? 'LOCAL / XYZ' : 'BENZENE / IBO'}</span><strong>{scene?.orbital?.label ?? (hasVolume ? 'Scalar field' : scene?.name ?? 'Loading orbitals…')}</strong></div>
             <div className="viewport-tools">
               <button className="icon-button" aria-label="Zoom in" disabled={!ready} onClick={() => viewer.current?.zoom(1.15)}><Plus size={17} /></button>
               <button className="icon-button" aria-label="Zoom out" disabled={!ready} onClick={() => viewer.current?.zoom(0.87)}><Minus size={17} /></button>
@@ -761,6 +842,7 @@ export default function App() {
             <div className="view-controls"><button aria-label={settings.spinning ? 'Pause rotation' : 'Rotate molecule'} aria-pressed={settings.spinning} disabled={!ready} className={settings.spinning ? 'active' : ''} onClick={() => update('spinning', !settings.spinning)}>{settings.spinning ? <Pause size={14} /> : <Play size={14} />}<span>{settings.spinning ? 'Pause' : 'Rotate'}</span></button>
               <span className="control-divider" /><button disabled={!ready} onClick={() => { update('spinning', false); viewer.current?.orient('top'); }}>Top</button><button disabled={!ready} onClick={() => { update('spinning', false); viewer.current?.orient('side'); }}>Side</button><button disabled={!ready} onClick={() => { update('spinning', false); viewer.current?.orient('default'); }}>3D</button></div>
           </div>
+          {scene?.trajectory&&<TrajectoryControls key={scene.key} trajectory={scene.trajectory} index={scene.trajectoryFrame??0} onFrame={changeFrame} ready={ready}/>}
           <div className="viewport-footer"><span><MousePointer2 size={13} />Drag to rotate<span className="footer-dot">·</span>Scroll to zoom<span className="footer-dot">·</span>Right-drag to pan</span><span className={`render-indicator ${renderStatus === 'error' ? 'failed' : ''}`}><i />{renderStatus === 'error' ? 'WebGL unavailable' : ready ? 'Rendered locally' : 'Loading'}</span></div>
         </section>
 

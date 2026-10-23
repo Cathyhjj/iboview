@@ -31,6 +31,7 @@ function fileSize(bytes: number) {
 }
 
 function projectDetails(project: SavedProjectSummary) {
+  if (project.kind === 'crystal') return 'Crystal structure';
   if (project.kind === 'xyz') return 'Structure';
   if (project.kind === 'cube') return 'Volume data';
   return `${project.orbitalCount} orbital${project.orbitalCount === 1 ? '' : 's'}`;

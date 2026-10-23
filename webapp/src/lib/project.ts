@@ -4,6 +4,9 @@ import { parseCube, parseXYZ, type ParsedCube, type ParsedStructure } from './im
 import { normalizeMoleculeAppearance } from './molecule-appearance';
 import { loadOrbitalColors } from './orbital-color-storage';
 import type { OrbitalColors } from './orbital-colors';
+import { parseCrystal } from './crystal';
+import { parseXYZTrajectory } from './trajectory';
+import { normalizeNamedViews, type NamedView } from './research-views';
 
 export const PROJECT_EXTENSION = '.iboview.json';
 export const MAX_PROJECT_BYTES = 200 * 1024 * 1024;
@@ -19,6 +22,7 @@ export interface ProjectSnapshot {
   colors: OrbitalColors;
   camera: CameraState;
   theme: 'light' | 'dark';
+  namedViews?: NamedView[];
 }
 
 type RecordValue = Record<string, unknown>;
@@ -146,8 +150,21 @@ function readDocument(value: unknown): ProjectSnapshot {
   if (document.version !== PROJECT_VERSION) throw new Error(`Unsupported IboView project version: ${String(document.version)}.`);
   const storedScene = object(document.scene, 'scene');
   const kind = storedScene.kind;
-  if (kind !== 'demo' && kind !== 'xyz' && kind !== 'cube') throw new Error('Project scene kind is invalid.');
+  if (kind !== 'demo' && kind !== 'xyz' && kind !== 'cube' && kind !== 'crystal') throw new Error('Project scene kind is invalid.');
   const structure = parseXYZ(string(storedScene.xyz, 'structure data'));
+  const trajectory = storedScene.trajectory === undefined ? undefined : parseXYZTrajectory(string(storedScene.trajectory, 'trajectory source'));
+  const trajectoryFrame = trajectory ? number(storedScene.trajectoryFrame ?? 0, 'trajectory frame', 0, trajectory.frames.length-1) : undefined;
+  if (trajectory && (kind !== 'xyz' || !Number.isInteger(trajectoryFrame) || trajectory.frames[0].atoms.length !== structure.atoms.length
+    || trajectory.frames[0].atoms.some((a,i) => { const b=structure.atoms[i]; return a.element!==b.element || Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>1e-5; }))) {
+    throw new Error('Project trajectory must match its XYZ structure and use a valid frame index.');
+  }
+  const storedCrystal = kind === 'crystal' ? object(storedScene.crystal, 'crystal source') : undefined;
+  if (storedCrystal && storedCrystal.format !== 'cif' && storedCrystal.format !== 'poscar') throw new Error('Project crystal format is invalid.');
+  const crystal = storedCrystal ? parseCrystal(string(storedCrystal.source, 'crystal source'), storedCrystal.format as 'cif' | 'poscar') : undefined;
+  if (crystal && (crystal.atoms.length !== structure.atoms.length || crystal.atoms.some((atom, index) => {
+    const other = structure.atoms[index];
+    return atom.element !== other.element || Math.hypot(atom.x-other.x, atom.y-other.y, atom.z-other.z) > 1e-5;
+  }))) throw new Error('Project crystal and stored structure do not match.');
   const volumes: Record<string, ParsedCube> = Object.create(null);
   for (const [id, cube] of Object.entries(object(document.volumes, 'embedded volumes'))) {
     identifier(id, 'volume ID');
@@ -157,7 +174,7 @@ function readDocument(value: unknown): ProjectSnapshot {
   }
   const volumeId = storedScene.volumeId === undefined ? undefined : identifier(storedScene.volumeId, 'selected volume ID');
   const volume = volumeId === undefined ? undefined : volumes[volumeId];
-  if ((kind === 'xyz' && (volumeId !== undefined || Object.keys(volumes).length)) || (kind !== 'xyz' && !volume)) {
+  if (((kind === 'xyz' || kind === 'crystal') && (volumeId !== undefined || Object.keys(volumes).length)) || ((kind === 'demo' || kind === 'cube') && !volume)) {
     throw new Error('Project selected volume data is missing or inconsistent with its scene.');
   }
   const manifest = document.manifest === undefined ? undefined : manifestMetadata(document.manifest);
@@ -181,10 +198,12 @@ function readDocument(value: unknown): ProjectSnapshot {
     scene: {
       key: string(storedScene.key, 'scene key'), name: string(storedScene.name, 'scene name'),
       formula: string(storedScene.formula, 'scene formula'), fileName: string(storedScene.fileName, 'source filename'),
-      kind, structure, ...(volume ? { volume } : {}), ...(orbital ? { orbital } : {}),
+      kind, structure, ...(volume ? { volume } : {}), ...(orbital ? { orbital } : {}), ...(crystal ? { crystal } : {}),
+      ...(trajectory ? { trajectory, trajectoryFrame } : {}),
     },
     ...(manifest ? { manifest, volumes } : {}), settings: displaySettings(document.settings),
     colors: loadOrbitalColors({ getItem: () => JSON.stringify(colors) }), camera, theme: document.theme,
+    ...(document.namedViews === undefined ? {} : { namedViews: normalizeNamedViews(document.namedViews) }),
   };
 }
 
@@ -219,12 +238,14 @@ export function serializeProject(snapshot: ProjectSnapshot): string {
   const document = {
     format: PROJECT_FORMAT, version: PROJECT_VERSION,
     scene: { key: scene.key, name: scene.name, formula: scene.formula, kind: scene.kind,
-      fileName: scene.fileName, xyz: scene.structure.xyz, volumeId, orbital: scene.orbital },
-    manifest, volumes, settings, colors, camera, theme,
+      fileName: scene.fileName, xyz: scene.structure.xyz, volumeId, orbital: scene.orbital,
+      ...(scene.trajectory ? { trajectory: scene.trajectory.source, trajectoryFrame: scene.trajectoryFrame ?? 0 } : {}),
+      ...(scene.crystal ? { crystal: { source: scene.crystal.source, format: scene.crystal.format } } : {}) },
+    manifest, volumes, settings, colors, camera, theme, namedViews: snapshot.namedViews,
   };
   // The same validation applies before saving and after opening a file.
   const normalized = readDocument(document);
-  const text = JSON.stringify({ ...document, settings: normalized.settings, colors: normalized.colors, camera: normalized.camera }, null, 2);
+  const text = JSON.stringify({ ...document, settings: normalized.settings, colors: normalized.colors, camera: normalized.camera, namedViews: normalized.namedViews }, null, 2);
   checkSize(text);
   return text;
 }

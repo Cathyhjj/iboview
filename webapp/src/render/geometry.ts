@@ -177,7 +177,7 @@ function addHalfBond(mesh: MeshBuilder, start: Vec3, end: Vec3, drawRadius: numb
 }
 
 /** Native IboView element colors, subdivision spheres, and geometric bond criterion. */
-export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, 'hydrogens' | 'style'> & Partial<MoleculeAppearance>, quality: RenderQuality = DEFAULT_RENDER_QUALITY): MeshData {
+export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, 'hydrogens' | 'style'> & Partial<MoleculeAppearance>, quality: RenderQuality = DEFAULT_RENDER_QUALITY, atomOverrides: Record<string, { color?: string }> = {}): MeshData {
   const mesh = new MeshBuilder();
   const detail = RENDER_QUALITY_SETTINGS[quality];
   const positiveScale = (value: number | undefined) => Number.isFinite(value) && value! > 0 ? value! : 1;
@@ -186,7 +186,7 @@ export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, '
   const bondRadius = 0.28 * BOHR * bondScale * (options.style === 'wireframe' ? 0.28 : 1);
   const uniformBondColor = options.bondColorMode === 'uniform'
     ? color(Number.parseInt((/^#[\da-f]{6}$/i.test(options.bondColor ?? '') ? options.bondColor! : DEFAULT_MOLECULE_APPEARANCE.bondColor).slice(1), 16)) : undefined;
-  const visible = atoms.filter((atom) => options.hydrogens || atom.element !== 'H').map((atom) => {
+  const visible = atoms.map((atom, index) => ({ atom, index })).filter(({ atom }) => options.hydrogens || atom.element !== 'H').map(({ atom, index }) => {
     const number = ELEMENTS.indexOf(atom.element) + 1;
     const position: Vec3 = [atom.x, atom.y, atom.z];
     if (number < 1 || position.some((value) => !Number.isFinite(value))) throw new Error('Cannot build molecular geometry from invalid atoms.');
@@ -196,7 +196,8 @@ export function buildMolecule(atoms: Atom[], options: Pick<MoleculeAppearance, '
       : options.style === 'stick' || options.style === 'wireframe' ? bondRadius : 0.4 * drawRadius * BOHR;
     return { position, drawRadius, covalent: COVALENT_RADII[number] ?? 3.2,
       radius: baseRadius * atomScale * (atom.element === 'H' ? hydrogenScale : 1),
-      rgba: color(moleculeAtomColor(atom.element, nativeElementHex(atom.element), options)) };
+      rgba: color(/^#[\da-f]{6}$/i.test(atomOverrides[index]?.color ?? '')
+        ? Number.parseInt(atomOverrides[index].color!.slice(1), 16) : moleculeAtomColor(atom.element, nativeElementHex(atom.element), options)) };
   });
   // Keep large imports within the native sphere mesh's memory cost.
   const sphere = detail.sphereSubdivisions === 4 && visible.length <= DETAILED_SPHERE_ATOM_LIMIT ? DETAILED_SPHERE : SPHERE;

@@ -1,5 +1,7 @@
 import type { ParsedCube, ParsedStructure } from './lib/importers';
 import type { MoleculeAppearance } from './lib/molecule-appearance';
+import type { CrystalData } from './lib/crystal';
+import type { Trajectory } from './lib/trajectory';
 
 export interface Orbital {
   id: string;
@@ -32,9 +34,12 @@ export interface Scene {
   formula: string;
   structure: ParsedStructure;
   volume?: ParsedCube;
-  kind: 'demo' | 'cube' | 'xyz';
+  kind: 'demo' | 'cube' | 'xyz' | 'crystal';
+  crystal?: CrystalData;
   fileName: string;
   orbital?: Orbital;
+  trajectory?: Trajectory;
+  trajectoryFrame?: number;
 }
 
 export interface DisplaySettings extends MoleculeAppearance {

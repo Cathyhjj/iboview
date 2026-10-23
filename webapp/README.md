@@ -60,7 +60,7 @@ needed by the browser.
   applying a config or opening a project updates only the current geometry's
   appearance. Reset molecular appearance with the Molecule panel's reset button.
   Sizes change display geometry, not coordinates or distance-inferred connectivity.
-- Local single-frame XYZ and single-field Gaussian Cube import, including Bohr/Å
+- Local single-frame or trajectory XYZ and single-field Gaussian Cube import, including Bohr/Å
   grids, skew grids and Fortran D exponents. Files are read in the browser.
 - PNG export of the current rendered view, including labels when enabled.
   **Resolution** below **Export PNG** selects 1×, 2× or 4× the current view's
@@ -123,7 +123,7 @@ needed by the browser.
   contain no molecular data and are limited to 64 KB. Up to 100 named configs can
   be saved in the browser; current settings also use the existing browser preferences.
 
-The parser rejects malformed input, multiple fields/frames, ghost atoms, files
+The Cube parser rejects malformed input, multiple scalar fields, ghost atoms, files
 over 35 MB, structures with 2,000 or more atoms and grids with 5,000,000 or more
 points. Bonds are inferred from distances with IboView's native covalent radii
 and cutoff; explicit bond orders and multiple-bond decorations are not imported.
@@ -203,6 +203,65 @@ New Cube files are gzip compressed and decoded on demand with the browser's
 decompression is required. Only four recently viewed grids are retained in the
 demo cache; color choices persist across examples and the camera refits when
 switching molecules.
+
+## Research workflows
+
+The Explorer's **Research tools** section opens the following workspaces.
+Open CIF or VASP 5 POSCAR/CONTCAR files for periodic coordination analysis,
+or use **NaCl crystal**. Crystal imports retain the lattice and source in project
+saves and display the unit cell. Disordered or partially occupied sites are
+rejected; CIF symmetry operations must be supplied for non-P1 structures.
+
+- **Pin current** captures a structure, orbital or trajectory frame with its current
+  appearance. **Compare & batch export** displays up to four pins. Add another
+  listed orbital directly, or close the dialog, import/switch a structure and pin
+  it. Pins and their adjusted cameras survive closing the dialog within this page
+  session; they are not stored in projects. Linked cameras share rotation, pan,
+  and physical scale while retaining independent structure centers.
+  Structures are not automatically aligned by atom correspondence. Optional shared
+  appearance/isovalue uses the first pin's settings; only compare isovalues for
+  fields with compatible physical units.
+- **Named views** saves up to 30 camera bookmarks per molecular geometry. Select
+  one to restore the same-scene camera immediately. Saving an existing name updates
+  it. Views are kept in browser storage and included in project saves; project
+  cameras and named views remain separate from reusable appearance configs.
+- **Batch figures** exports pinned views or all orbitals listed in the current
+  demo/project, optionally at every named view. A single ZIP contains equally sized
+  PNGs, a compact two-column panel sheet and `views.json` with camera, appearance,
+  source and isovalue metadata. Widths are 1024, 1536 or 2048 pixels; each image has
+  a 4:3 scene area plus a white 48-pixel title band. The scene can be transparent.
+  Individual cropping is disabled to preserve comparable dimensions. Up to 24
+  images and 200 MB may be exported per batch. A rendered panel preview appears
+  after export. Independent offscreen rendering leaves the main camera unchanged.
+- **Local coordination / XAS** takes a snapshot of the current structure and
+  absorber (initially the first atom). Choose a radius up to 12 Å, an optional
+  neighbor element and a shell tolerance. Crystal neighbors are enumerated from
+  the full periodic lattice, including triclinic cells and images outside the
+  displayed unit cell. Finite molecules use their supplied atoms. Shells are
+  grouped by element and a bounded distance spread, not by inferred chemical
+  bonds. These are structural neighbor counts, not EXAFS fitting results. The
+  table, distance distribution and cluster preview share shell colors; selecting
+  a shell highlights its atoms. XYZ exports place the absorber at the origin;
+  CSV includes site/image identities and relative coordinates; JSON also retains
+  cutoff, tolerance, center and lattice provenance. Calculations exceeding one
+  million image candidates or 10,000 neighbors report an error without truncating
+  counts. Clusters above 1999 atoms remain exportable but cannot be previewed.
+
+**Trajectory XYZ** files open through the normal Open file button. All frames
+must retain atom count and element order. Limits are 35 MB, 1000 frames and
+200,000 total atom records. A timeline supports stepping, scrubbing, 1–10 fps
+playback and looping; rendering readiness controls the actual playback rate.
+Appearance and camera stay stable between frames. Project
+saves embed the full source and current frame, and reopen paused. Pin any paused frame for comparisons.
+
+An optional energy curve reads explicit comment metadata such as
+`energy=-152.34 Hartree`, `E=-123.4 eV` or `energy_eV=-123.4`. Recognized units are
+eV, Hartree/Ha/Eh, kJ/mol and kcal/mol. Energies are shown relative to the lowest
+supplied value; missing values remain gaps and mixed units suppress the curve.
+Unlabelled numbers are never assigned energy units. Click the curve or use its
+arrow keys to select a frame. The water-bending example is an illustrative geometry
+sequence with no calculated energies. Orbital tracking along a trajectory is not
+included.
 
 ## Verify
 
